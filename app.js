@@ -58,7 +58,8 @@ const CAT_ICONS = {
   security: '<path d="M12 3.2l7 2.8v5.3c0 4.6-3 8.1-7 9.5-4-1.4-7-4.9-7-9.5V6z"/><path d="M9 12l2.2 2.2 4-4.2"/>',
   wan: '<path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.6 4.5 4.5 0 0 0 7 18.5z"/>',
   wireless: '<path d="M4.5 10.5a10.6 10.6 0 0 1 15 0M7.5 13.8a6.2 6.2 0 0 1 9 0M10.5 17a2 2 0 0 1 3 0M12 19.8h.01"/>',
-  iot: '<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3.5V7M14 3.5V7M10 17v3.5M14 17v3.5M3.5 10H7M3.5 14H7M17 10h3.5M17 14h3.5"/>'
+  iot: '<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3.5V7M14 3.5V7M10 17v3.5M14 17v3.5M3.5 10H7M3.5 14H7M17 10h3.5M17 14h3.5"/>',
+  segedlet: '<rect x="5" y="2.5" width="14" height="19" rx="2.5"/><path d="M8.5 6.5h7M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h3.5"/>'
 };
 
 /** Kódblokk típusikonok: >_ parancssor, nyíl = kattintás a grafikus felületen, </> programkód */
@@ -66,8 +67,14 @@ const BLOCK_ICONS = {
   ios: '<path d="M5 7.5l4 4-4 4M11.5 16.5H19"/>',
   pc: '<path d="M5 7.5l4 4-4 4M11.5 16.5H19"/>',
   gui: '<path d="M5.5 4.5l13 5.6-5.7 1.9-2.3 5.6z"/>',
-  python: '<path d="M8.5 7L3.5 12l5 5M15.5 7l5 5-5 5"/>'
+  python: '<path d="M8.5 7L3.5 12l5 5M15.5 7l5 5-5 5"/>',
+  table: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9.5 9.5v10"/>',
+  steps: '<path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/>',
+  text: '<path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/>'
 };
+
+/** Ezekben a blokkokban van soronkénti parancs + magyarázat (és másolás gomb) */
+const CODE_LANGS = new Set(['ios', 'pc', 'gui']);
 
 const svgIcon = (paths, cls) => `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
 const catIcon = (id, cls) => svgIcon(CAT_ICONS[id] || CAT_ICONS.all, cls);
@@ -249,10 +256,19 @@ function prepareData() {
     if (!known.has(item.category)) {
       console.warn(`Ismeretlen kategória: "${item.category}" (${item.id})`);
     }
+    item.blocks = item.blocks || [];
     item.blocks.forEach((b) => {
+      if (b.lang === 'table') {                       // táblázat: nincs kód, csak fejléc és sorok
+        b.lines = [];
+        b.copyText = '';
+        b.text = [b.head.join(' '), ...b.rows.map((r) => r.join(' '))].join('\n');
+        return;
+      }
       const code = b.code.replace(/^\n+/, '').replace(/\s+$/, '');
       b.lines = code.split('\n').map((l) => splitNote(l, b.lang));
-      b.copyText = b.lines.map((l) => l.cmd).join('\n');
+      // Csak a bemásolható parancsblokkok kapnak másolás gombot
+      b.copyText = CODE_LANGS.has(b.lang) || b.lang === 'python' ? b.lines.map((l) => l.cmd).join('\n') : '';
+      b.text = code;
     });
   });
 }
@@ -294,7 +310,44 @@ function renderLine(l, lang) {
   return `<div class="ln${l.note ? ' has-note' : ''}" style="--i:${indent}"><span class="ln-cmd">${code}</span>${note}</div>`;
 }
 
+/** Táblázat: a csak számokat tartalmazó oszlopok fix szélességű betűt kapnak */
+const MONO_CELL = /^[\d\s./:,+–-]*$/;
+
+function renderTable(b) {
+  const mono = b.head.map((_, i) => b.rows.every((r) => MONO_CELL.test(String(r[i] ?? ''))));
+  const cls = (i) => (mono[i] ? ' class="is-mono"' : '');
+  const head = b.head.map((h, i) => `<th${cls(i)}>${esc(h)}</th>`).join('');
+  const body = b.rows
+    .map((r) => `<tr>${r.map((c, i) => `<td${cls(i)}>${richText(c)}</td>`).join('')}</tr>`)
+    .join('');
+  return `<div class="code-body table-wrap"><table class="tbl"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+/** Számozott lépéssor ('steps') vagy felsorolás ('text'); a "# " kezdetű sor alcím */
+function renderList(b) {
+  const tag = b.lang === 'steps' ? 'ol' : 'ul';
+  let html = '';
+  let open = false;
+  const close = () => { if (open) { html += `</${tag}>`; open = false; } };
+
+  b.lines.forEach((l) => {
+    const line = l.cmd.trim();
+    if (!line) return;
+    if (line.startsWith('# ')) {
+      close();
+      html += `<p class="list-head">${richText(line.slice(2))}</p>`;
+      return;
+    }
+    if (!open) { html += `<${tag} class="list-body">`; open = true; }
+    html += `<li>${richText(line)}</li>`;
+  });
+  close();
+  return `<div class="code-body list-block">${html}</div>`;
+}
+
 function renderBlock(b) {
+  if (b.lang === 'table') return renderTable(b);
+  if (b.lang === 'steps' || b.lang === 'text') return renderList(b);
   if (b.lang === 'python') {
     const html = b.lines.map((l) => hlPy(l.cmd)).join('\n');
     return `<pre class="code-body code-pre"><code>${html}</code></pre>`;
@@ -311,17 +364,18 @@ function buildCard(item) {
   const multi = item.blocks.length > 1;
   const blocksHtml = item.blocks.map((b, i) => {
     const aria = `Másolás: ${item.title}${multi ? ` – ${b.label}` : ''}`;
-    return `
-      <div class="code">
-        <div class="code-head">
-          ${svgIcon(BLOCK_ICONS[b.lang] || BLOCK_ICONS.ios, `code-type type-${esc(b.lang)}`)}
-          <span class="code-label">${labelHtml(b.label, b.lang)}</span>
+    const copyBtn = b.copyText ? `
           <button class="copy-btn" type="button" data-block="${i}" aria-label="${esc(aria)}">
             <span class="copy-icons" aria-hidden="true">${ICONS.copy}${ICONS.check}</span>
             <span class="copy-tip" aria-hidden="true">
               <span class="tip-idle">Másolás</span><span class="tip-done">Másolva!</span><span class="tip-fail">Nem sikerült</span>
             </span>
-          </button>
+          </button>` : '';
+    return `
+      <div class="code">
+        <div class="code-head">
+          ${svgIcon(BLOCK_ICONS[b.lang] || BLOCK_ICONS.ios, `code-type type-${esc(b.lang)}`)}
+          <span class="code-label">${labelHtml(b.label, b.lang)}</span>${copyBtn}
         </div>
         ${renderBlock(b)}
       </div>`;
@@ -332,8 +386,11 @@ function buildCard(item) {
       <h3 class="card-title"></h3>
       <p class="card-desc"></p>
     </header>
+    ${item.tool ? '<div class="tool"></div>' : ''}
     ${blocksHtml}
     ${item.tip ? `<p class="card-tip">${ICONS.bulb}<span>${richText(item.tip)}</span></p>` : ''}`;
+
+  if (item.tool === 'subnet') buildSubnetTool(card.querySelector('.tool'));
 
   const titleEl = card.querySelector('.card-title');
   const descEl = card.querySelector('.card-desc');
@@ -343,7 +400,7 @@ function buildCard(item) {
 
   // Soronkénti keresési referenciák (a találati sorok kiemeléséhez)
   const lineEls = card.querySelectorAll('.ln');
-  const flatLines = item.blocks.filter((b) => b.lang !== 'python').flatMap((b) => b.lines);
+  const flatLines = item.blocks.filter((b) => CODE_LANGS.has(b.lang)).flatMap((b) => b.lines);
   const lineRefs = Array.from(lineEls, (el, i) => ({
     el,
     text: norm(`${flatLines[i].cmd} ${flatLines[i].note}`)
@@ -353,7 +410,7 @@ function buildCard(item) {
   const cat = catById(item.category);
   const haystack = norm([
     item.title, item.desc, item.tip || '', cat ? cat.label : '',
-    ...item.blocks.flatMap((b) => [b.label || '', ...b.lines.map((l) => `${l.cmd} ${l.note}`)])
+    ...item.blocks.flatMap((b) => [b.label || '', b.text || ''])
   ].join(' \n '));
 
   cardRefs.push({ item, el: card, titleEl, descEl, tipEl, haystack, lineRefs });
@@ -425,6 +482,140 @@ function renderToc() {
   });
 
   els.toc.appendChild(frag);
+}
+
+/* =========================================================================
+ * 4/B. ALHÁLÓZAT-KALKULÁTOR (tool: 'subnet')
+ * ========================================================================= */
+const PREFIX_PRESETS = [24, 25, 26, 27, 28, 29, 30];
+
+const toIp = (n) => [24, 16, 8, 0].map((s) => (n >>> s) & 255).join('.');
+
+/** Cím típusa – a 169.254-es cím azt jelenti, hogy nem jött DHCP-válasz */
+function ipKind(ip) {
+  const a = (ip >>> 24) & 255;
+  const b = (ip >>> 16) & 255;
+  if (a === 10) return 'privát (10.0.0.0/8)';
+  if (a === 172 && b >= 16 && b <= 31) return 'privát (172.16.0.0/12)';
+  if (a === 192 && b === 168) return 'privát (192.168.0.0/16)';
+  if (a === 127) return 'loopback';
+  if (a === 169 && b === 254) return 'APIPA – nem kapott DHCP-címet';
+  if (a >= 224 && a <= 239) return 'multicast';
+  return 'publikus';
+}
+
+/** IP + prefix → hálózati cím, broadcast, első/utolsó gép, maszk, wildcard */
+function calcSubnet(ipText, prefix) {
+  const m = String(ipText).trim().match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!m || !(prefix >= 0 && prefix <= 32)) return null;
+
+  const octets = m.slice(1, 5).map(Number);
+  if (octets.some((o) => o > 255)) return null;
+
+  const ip = octets.reduce((acc, o) => acc * 256 + o, 0) >>> 0;
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
+  const wild = ~mask >>> 0;
+  const net = (ip & mask) >>> 0;
+  const bcast = (net | wild) >>> 0;
+  const usable = prefix <= 30;                       // /31 és /32 nem osztható fel így
+  const rem = prefix % 8;
+  const octet = rem === 0 ? Math.max(1, prefix / 8) : Math.floor(prefix / 8) + 1;
+
+  return {
+    net: toIp(net),
+    first: toIp(usable ? net + 1 : net),
+    last: toIp(usable ? bcast - 1 : bcast),
+    bcast: prefix === 32 ? '–' : toIp(bcast),
+    mask: toIp(mask),
+    wild: toIp(wild),
+    hosts: usable
+      ? (2 ** (32 - prefix) - 2).toLocaleString('hu-HU')
+      : (prefix === 31 ? '2 (pont-pont link)' : '1 (egyetlen gép)'),
+    step: `${rem === 0 ? 1 : 2 ** (8 - rem)} (${octet}. oktett)`,
+    kind: ipKind(ip),
+    ip: toIp(ip)
+  };
+}
+
+const SUBNET_ROWS = [
+  ['Hálózati cím', 'net'],
+  ['Első használható', 'first'],
+  ['Utolsó használható', 'last'],
+  ['Broadcast cím', 'bcast'],
+  ['Alhálózati maszk', 'mask'],
+  ['Wildcard maszk', 'wild'],
+  ['Használható gépek', 'hosts'],
+  ['Lépésköz', 'step'],
+  ['Cím típusa', 'kind']
+];
+
+function buildSubnetTool(host) {
+  host.innerHTML = `
+    <div class="tool-inputs">
+      <label class="tool-field">
+        <span>IP-cím</span>
+        <input class="tool-ip" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" value="192.168.10.37">
+      </label>
+      <label class="tool-field tool-field-prefix">
+        <span>Prefix</span>
+        <span class="tool-prefix-wrap">/<input class="tool-prefix" type="number" min="0" max="32" value="26"></span>
+      </label>
+    </div>
+    <div class="tool-presets">${PREFIX_PRESETS.map((p) => `<button class="tool-preset" type="button" data-prefix="${p}">/${p}</button>`).join('')}</div>
+    <dl class="tool-out"></dl>
+    <div class="tool-cmds"></div>`;
+
+  const ipEl = host.querySelector('.tool-ip');
+  const prefixEl = host.querySelector('.tool-prefix');
+  const outEl = host.querySelector('.tool-out');
+  const cmdsEl = host.querySelector('.tool-cmds');
+
+  const copyRow = (text) =>
+    `<button class="tool-cmd" type="button" data-copy="${esc(text)}"><code>${esc(text)}</code>${ICONS.copy}</button>`;
+
+  function update() {
+    const slash = ipEl.value.match(/\/\s*(\d{1,2})\s*$/);      // „192.168.10.37/26” is jó
+    if (slash) prefixEl.value = slash[1];
+
+    const prefix = Number(prefixEl.value);
+    const r = calcSubnet(ipEl.value.split('/')[0], prefix);
+
+    host.querySelectorAll('.tool-preset').forEach((b) => {
+      b.setAttribute('aria-pressed', String(Number(b.dataset.prefix) === prefix));
+    });
+
+    if (!r) {
+      outEl.innerHTML = '<p class="tool-error">Írj be érvényes IP-címet (pl. 192.168.10.37) és 0–32 közötti prefixet.</p>';
+      cmdsEl.innerHTML = '';
+      return;
+    }
+
+    outEl.innerHTML = SUBNET_ROWS.map(([label, key]) => `
+      <dt>${label}</dt>
+      <dd><button class="tool-val" type="button" data-copy="${esc(r[key])}">${esc(r[key])}</button></dd>`).join('');
+
+    cmdsEl.innerHTML =
+      copyRow(`ip address ${r.ip} ${r.mask}`) +
+      copyRow(`network ${r.net} ${r.wild} area 0`);
+  }
+
+  host.addEventListener('click', async (e) => {
+    const preset = e.target.closest('.tool-preset');
+    if (preset) {
+      ipEl.value = ipEl.value.split('/')[0].trim();
+      prefixEl.value = preset.dataset.prefix;
+      update();
+      return;
+    }
+    const copyEl = e.target.closest('[data-copy]');
+    if (!copyEl) return;
+    const ok = await copyText(copyEl.dataset.copy);
+    showToast(ok ? `Másolva: ${copyEl.dataset.copy}` : 'A másolás nem sikerült');
+  });
+
+  ipEl.addEventListener('input', update);
+  prefixEl.addEventListener('input', update);
+  update();
 }
 
 /* =========================================================================
@@ -704,8 +895,12 @@ function bindEvents() {
     if (e.isComposing) return;
     if (e.key === 'Enter') {
       e.preventDefault();
-      const first = cardRefs.find((r) => !r.el.hidden);
-      if (first) copyBlock(first.item, 0, first.el.querySelector('.copy-btn'), true);
+      // az első olyan találat, amiben van bemásolható parancs (a táblázatos kártyákat átugorja)
+      const first = cardRefs.find((r) => !r.el.hidden && r.item.blocks.some((b) => b.copyText));
+      if (first) {
+        const index = first.item.blocks.findIndex((b) => b.copyText);
+        copyBlock(first.item, index, first.el.querySelectorAll('.copy-btn')[0], true);
+      }
     } else if (e.key === 'Escape') {
       if (els.search.value) { e.preventDefault(); setQuery(''); }
       else els.search.blur();

@@ -12,7 +12,8 @@
  *   category: a CATEGORIES egyik id-je
  *   title:    kártya címe
  *   desc:     rövid leírás
- *   blocks:   [{ label, lang, code }]
+ *   blocks:   [{ label, lang, code }] – lásd lejjebb a lang értékeit
+ *   tool:     (opcionális) beépített eszköz, pl. 'subnet' (alhálózat-kalkulátor)
  *   tip:      (opcionális) vizsgatipp, `backtick` között parancs formázással
  * }
  *
@@ -22,6 +23,9 @@
  *   'gui'    grafikus lépések: "Menü > Almenü", "Mező: érték"
  *            (egy sorban több mező két szóközzel elválasztva)
  *   'python' MCU/SBC kód (itt nincs soronkénti magyarázat)
+ *   'steps'  számozott lépéssor (nincs másolás gomb)
+ *   'text'   felsorolás; a "# " kezdetű sor alcím lesz
+ *   'table'  táblázat – code helyett: head: ['Fejléc', …], rows: [['cella', …], …]
  *
  * SORONKÉNTI MAGYARÁZAT (ios / pc / gui):
  *   parancs  // magyarázat
@@ -30,6 +34,7 @@
 
 const CATEGORIES = [
   { id: 'all',        label: 'Mind',        prompt: 'PT#' },
+  { id: 'segedlet',   label: 'Segédlet',    prompt: 'PT#' },
   { id: 'alapok',     label: 'Alapok',      prompt: 'R1#' },
   { id: 'switching',  label: 'Switching',   prompt: 'S1(config)#' },
   { id: 'redundancia',label: 'Redundancia', prompt: 'S1(config-if-range)#' },
@@ -43,6 +48,289 @@ const CATEGORIES = [
 ];
 
 const COMMANDS = [
+
+  /* =====================================================================
+   * SEGÉDLET – kalkulátor, táblázatok, vizsgamenet
+   * ===================================================================== */
+  {
+    id: 'subnet-calc',
+    category: 'segedlet',
+    title: 'Alhálózat-kalkulátor',
+    desc: 'IP-cím és prefix (CIDR) alapján hálózati cím, broadcast, első és utolsó gép, alhálózati és wildcard maszk.',
+    tool: 'subnet',
+    blocks: [],
+    tip: 'Bármelyik kiszámolt értékre kattintva a vágólapra másolod. Wildcard maszk kell az OSPF `network` és az ACL parancsokhoz, alhálózati maszk az `ip address` parancshoz. A prefix az IP-cím mögé is írható: `192.168.10.37/26`.'
+  },
+  {
+    id: 'mask-table',
+    category: 'segedlet',
+    title: 'Maszktáblázat: prefix, maszk, wildcard',
+    desc: 'A CIDR prefixek és a hozzájuk tartozó alhálózati maszk, wildcard maszk, gépszám és lépésköz.',
+    blocks: [{
+      label: 'IPv4 prefixek',
+      lang: 'table',
+      head: ['Prefix', 'Alhálózati maszk', 'Wildcard maszk', 'Gépek', 'Lépésköz'],
+      rows: [
+        ['/8', '255.0.0.0', '0.255.255.255', '16 777 214', '1 (1. oktett)'],
+        ['/16', '255.255.0.0', '0.0.255.255', '65 534', '1 (2. oktett)'],
+        ['/17', '255.255.128.0', '0.0.127.255', '32 766', '128 (3. oktett)'],
+        ['/18', '255.255.192.0', '0.0.63.255', '16 382', '64 (3. oktett)'],
+        ['/19', '255.255.224.0', '0.0.31.255', '8 190', '32 (3. oktett)'],
+        ['/20', '255.255.240.0', '0.0.15.255', '4 094', '16 (3. oktett)'],
+        ['/21', '255.255.248.0', '0.0.7.255', '2 046', '8 (3. oktett)'],
+        ['/22', '255.255.252.0', '0.0.3.255', '1 022', '4 (3. oktett)'],
+        ['/23', '255.255.254.0', '0.0.1.255', '510', '2 (3. oktett)'],
+        ['/24', '255.255.255.0', '0.0.0.255', '254', '1 (3. oktett)'],
+        ['/25', '255.255.255.128', '0.0.0.127', '126', '128 (4. oktett)'],
+        ['/26', '255.255.255.192', '0.0.0.63', '62', '64 (4. oktett)'],
+        ['/27', '255.255.255.224', '0.0.0.31', '30', '32 (4. oktett)'],
+        ['/28', '255.255.255.240', '0.0.0.15', '14', '16 (4. oktett)'],
+        ['/29', '255.255.255.248', '0.0.0.7', '6', '8 (4. oktett)'],
+        ['/30', '255.255.255.252', '0.0.0.3', '2', '4 (4. oktett)'],
+        ['/31', '255.255.255.254', '0.0.0.1', '2', '2 (4. oktett)'],
+        ['/32', '255.255.255.255', '0.0.0.0', '1', '1 (4. oktett)']
+      ]
+    }],
+    tip: 'Wildcard = 255.255.255.255 mínusz a maszk. Használható gépek: 2^(32−prefix) − 2, mert a hálózati cím és a broadcast nem osztható ki. A lépésköz azt mutatja, hányasával követik egymást az alhálózatok: /26-nál 0, 64, 128, 192. Routerek közötti pont-pont link szokásos maszkja a /30; a /31 csak pont-pont linken, a /32 pedig egyetlen címre (pl. loopback) használható.'
+  },
+  {
+    id: 'ports',
+    category: 'segedlet',
+    title: 'Portszámok',
+    desc: 'A vizsgán előkerülő protokollok portszámai – ACL-ekhez és hibakereséshez.',
+    blocks: [{
+      label: 'Jól ismert portok',
+      lang: 'table',
+      head: ['Protokoll', 'Port', 'Szállítás', 'Mire való'],
+      rows: [
+        ['FTP', '20, 21', 'TCP', 'fájlátvitel felhasználónévvel'],
+        ['SSH', '22', 'TCP', 'titkosított távoli elérés'],
+        ['Telnet', '23', 'TCP', 'titkosítatlan távoli elérés'],
+        ['SMTP', '25', 'TCP', 'levél küldése'],
+        ['DNS', '53', 'UDP/TCP', 'névfeloldás'],
+        ['DHCP', '67, 68', 'UDP', 'címkiosztás (szerver, kliens)'],
+        ['TFTP', '69', 'UDP', 'egyszerű fájlátvitel, konfigmentés'],
+        ['HTTP', '80', 'TCP', 'weboldal'],
+        ['POP3', '110', 'TCP', 'levél letöltése'],
+        ['SNMP', '161, 162', 'UDP', 'hálózatfelügyelet, trap'],
+        ['HTTPS', '443', 'TCP', 'titkosított weboldal'],
+        ['Syslog', '514', 'UDP', 'naplóüzenetek gyűjtése'],
+        ['TACACS+', '49', 'TCP', 'központi hitelesítés'],
+        ['RADIUS', '1812, 1813', 'UDP', 'központi hitelesítés']
+      ]
+    }],
+    tip: 'Extended ACL-ben a port a `eq` után jön: `permit tcp any host 192.168.1.20 eq 80`. Név is írható szám helyett: `eq www`, `eq 22`.'
+  },
+  {
+    id: 'ad-table',
+    category: 'segedlet',
+    title: 'Adminisztratív távolság (AD)',
+    desc: 'Ha két forrás ugyanazt a hálózatot hirdeti, a kisebb AD-jű útvonal kerül az irányítótáblába.',
+    blocks: [{
+      label: 'Alapértelmezett AD értékek',
+      lang: 'table',
+      head: ['Útvonal forrása', 'AD'],
+      rows: [
+        ['Közvetlenül csatlakozó hálózat', '0'],
+        ['Statikus útvonal', '1'],
+        ['EIGRP összegzett útvonal', '5'],
+        ['Külső BGP (eBGP)', '20'],
+        ['EIGRP (belső)', '90'],
+        ['OSPF', '110'],
+        ['IS-IS', '115'],
+        ['RIP', '120'],
+        ['EIGRP (külső)', '170'],
+        ['Belső BGP (iBGP)', '200'],
+        ['Nem használható útvonal', '255']
+      ]
+    }],
+    tip: 'Lebegő (tartalék) statikus út: a parancs végére nagyobb AD-t írsz, mint az elsődleges útvonalé: `ip route 192.168.2.0 255.255.255.0 10.0.1.2 150`. A `show ip route` kimenetében a szögletes zárójelben az [AD/metrika] látszik.'
+  },
+  {
+    id: 'special-addresses',
+    category: 'segedlet',
+    title: 'Privát és speciális címtartományok',
+    desc: 'Melyik címtartomány mire való – és mit jelent, ha a gép 169.254-es címet kapott.',
+    blocks: [{
+      label: 'IPv4 címtartományok',
+      lang: 'table',
+      head: ['Tartomány', 'Típus', 'Megjegyzés'],
+      rows: [
+        ['10.0.0.0/8', 'privát', 'nagy belső hálózat, NAT-tal megy ki az internetre'],
+        ['172.16.0.0/12', 'privát', '172.16.0.0 – 172.31.255.255'],
+        ['192.168.0.0/16', 'privát', 'otthoni és kisvállalati hálózat'],
+        ['169.254.0.0/16', 'APIPA', 'a gép nem kapott DHCP-címet – itt a hiba'],
+        ['127.0.0.0/8', 'loopback', 'saját maga tesztelése (127.0.0.1)'],
+        ['224.0.0.0/4', 'multicast', 'OSPF 224.0.0.5 és 224.0.0.6, RIPv2 224.0.0.9, EIGRP 224.0.0.10'],
+        ['255.255.255.255', 'broadcast', 'minden gép a helyi hálózaton (pl. DHCP Discover)']
+      ]
+    }],
+    tip: 'A privát címek nem routolhatók az interneten, ezért kell NAT vagy PAT. Ha a kliens `ipconfig` kimenetében 169.254-es cím van, a DHCP nem válaszolt: nézd meg a poolt, a kizárt címeket és az `ip helper-address` sort.'
+  },
+  {
+    id: 'szolgaltatasok',
+    category: 'segedlet',
+    title: 'Szolgáltatások áttekintése',
+    desc: 'Melyik szolgáltatás mit csinál, hol kell bekapcsolni és melyik porton figyel.',
+    blocks: [{
+      label: 'Mit mire használsz',
+      lang: 'table',
+      head: ['Szolgáltatás', 'Mit csinál', 'Hol állítod be', 'Port'],
+      rows: [
+        ['DHCP', 'IP-címet, maszkot, átjárót és DNS-t oszt a klienseknek', 'routeren `ip dhcp pool`, vagy Server-PT', '67, 68'],
+        ['DNS', 'névből IP-címet csinál (www.ceg.hu → 192.168.30.10)', 'Server-PT › Services › DNS', '53'],
+        ['SMTP / POP3', 'levél küldése és letöltése', 'Server-PT › Services › EMAIL', '25, 110'],
+        ['HTTP', 'weboldalt szolgál ki', 'Server-PT › Services › HTTP', '80'],
+        ['TFTP', 'konfiguráció és IOS mentése, visszatöltése', 'Server-PT › Services › TFTP', '69'],
+        ['NAT / PAT', 'privát címet publikusra fordít', 'routeren, az internet felé néző porton', '–'],
+        ['SSH', 'titkosított távoli belépés a routerbe', 'routeren `line vty`', '22'],
+        ['IoT', 'okoseszközök regisztrálása és automatizálása', 'Server-PT › Services › IoT', '80']
+      ]
+    }],
+    tip: 'A sorrend mindig ez: előbb a hálózat (cím, routing, ping), csak utána a szolgáltatások. Egyik szolgáltatás sem fog működni, amíg a kliens nem éri el pinggel a szervert.'
+  },
+  {
+    id: 'vizsga-menet',
+    category: 'segedlet',
+    title: 'Vizsgamenet: milyen sorrendben haladj',
+    desc: 'Ebben a sorrendben építsd fel a feladatot, így minden hiba ott derül ki, ahol keletkezett.',
+    blocks: [{
+      label: 'Lépések',
+      lang: 'steps',
+      code: `
+Kábelezés, majd minden eszköznek adj nevet: \`hostname R1\`
+Interfész IP-címek, utána mindig \`no shutdown\` (soros link DCE oldalán \`clock rate 64000\`)
+Ellenőrzés: \`show ip interface brief\` – a használt portok up/up állapotban legyenek
+Ping a közvetlen szomszéd routerrel – ha ez nem megy, ne lépj tovább
+Routing: statikus útvonalak vagy OSPF, majd \`show ip route\` és ping a távoli LAN-ba
+DHCP: kizárt címek, pool, \`default-router\`, \`dns-server\`; a kliensen állítsd DHCP-re
+Szerverek: fix IP, maszk, átjáró, DNS – és csak utána kapcsold be a szolgáltatásokat
+DNS rekordok felvétele, teszt: \`nslookup\` és ping névvel
+Web, mail, TFTP kipróbálása a kliensekről
+NAT/PAT: inside/outside jelölés, ACL, alapértelmezett útvonal, végül \`show ip nat translations\`
+Biztonság: \`enable secret\`, konzol- és VTY-jelszó, SSH, szükség esetén ACL és port security
+Mentés minden eszközön: \`copy running-config startup-config\``
+    }],
+    tip: 'Minden lépés után ellenőrizz, ne a végén keresd, hol a hiba. A két leggyorsabb ellenőrzés: ping és `show ip interface brief`. Konfigurációs módból a `do` előtaggal is futtathatsz show parancsot.'
+  },
+  {
+    id: 'hibakereses',
+    category: 'segedlet',
+    title: 'Hibakeresés: tünet → hol keresd',
+    desc: 'A leggyakoribb hibajelenségek és az, hogy melyik beállítást kell megnézni.',
+    blocks: [{
+      label: 'Hibakeresési táblázat',
+      lang: 'table',
+      head: ['Tünet', 'Hol keresd'],
+      rows: [
+        ['Piros háromszög a kábelen', 'rossz kábeltípus, vagy hiányzik a `no shutdown`'],
+        ['Interfész: administratively down', 'hiányzik a `no shutdown`'],
+        ['Interfész: up/down', 'soros linken nincs `clock rate` a DCE oldalon, vagy eltér a beágyazás'],
+        ['A gép 169.254-es címet kapott', 'nem éri el a DHCP-t: pool hálózata, kizárt címek, `ip helper-address`, VLAN'],
+        ['Az átjáróig megy a ping, tovább nem', 'hiányzik az útvonal: `show ip route`, routing protokoll vagy default route'],
+        ['IP-vel megy a ping, névvel nem', 'DNS: hiányzó A rekord, vagy a kliensnek nincs DNS-szervere'],
+        ['Ping megy, de a web vagy a mail nem', 'a szolgáltatás nincs bekapcsolva a szerveren, vagy ACL tiltja'],
+        ['A levél nem érkezik meg', 'domain név, felhasználónév, SMTP/POP3 mezők, `mail.ceg.hu` A rekordja'],
+        ['NAT: üres a fordítási tábla', '`ip nat inside` / `outside`, az ACL, a default route – és kell forgalom is'],
+        ['SSH: nem enged be', '`login local`, helyi felhasználó, `ip domain-name`, RSA kulcs, `transport input ssh`, `enable secret`'],
+        ['OSPF: nincs szomszéd', 'eltérő area, hello/dead időzítő, passzív interfész a szomszéd felé, hiányzó `network` sor'],
+        ['VLAN-ok között nincs kapcsolat', 'trönk a switchek között, alinterfészek `encapsulation dot1Q`, SVI `no shutdown`']
+      ]
+    }],
+    tip: 'Haladj rétegenként lentről felfelé: kábel és interfész → IP-cím és maszk → átjáró → routing → szolgáltatás. A `ping` és a `tracert` megmutatja, hol akad el a csomag.'
+  },
+  {
+    id: 'buktatok',
+    category: 'segedlet',
+    title: 'Tipikus buktatók',
+    desc: 'Amiken a legtöbb pont elúszik – érdemes átfutni leadás előtt.',
+    blocks: [{
+      label: 'Amire figyelj',
+      lang: 'text',
+      code: `
+# Interfészek
+A router minden portja alapból le van tiltva: \`no shutdown\` nélkül semmi nem működik.
+Soros linken a DCE oldalon kell a \`clock rate 64000\` – a DCE véget a PT óra ikonnal jelzi.
+Az alinterfészek csak akkor élednek fel, ha a fizikai port is \`no shutdown\` állapotban van.
+# Címzés
+A szerverek fix címét zárd ki a DHCP-ből: \`ip dhcp excluded-address\`.
+A kliens átjárója mindig a saját alhálózatában lévő router-interfész címe.
+A /30-as pont-pont linken csak két használható cím van – a .0 és a .3 nem osztható ki.
+# Routing
+OSPF-ben wildcard maszk kell, nem alhálózati: /24 → \`0.0.0.255\`, /30 → \`0.0.0.3\`.
+Statikus útvonalnál mindkét irányba kell útvonal, különben csak odafelé jut el a csomag.
+A \`passive-interface\` a LAN felé megy, a szomszéd router felé soha.
+# Szolgáltatások
+A DHCP poolba írd bele a \`dns-server\` sort is, különben a kliens nem tud nevet feloldani.
+A mail kliensben a bejövő és a kimenő szerver ugyanaz a név vagy IP-cím, a domain pedig egyezzen a felhasználó címével.
+A szervereknek is kell átjáró, különben csak a saját alhálózatukból érhetők el.
+# Biztonság
+\`login local\` vagy \`aaa new-model\` után felhasználónév is kell – előbb hozd létre a helyi felhasználót.
+Minden ACL végén rejtett \`deny any\` van, ezért a végére kell egy \`permit\` sor.
+Standard ACL a célhoz közel, extended ACL a forráshoz közel kerül.
+# Mentés
+\`reload\` előtt mindig \`copy running-config startup-config\`, különben elvész a munka.
+Switch teljes nullázása: \`erase startup-config\` + \`delete flash:vlan.dat\` + \`reload\`.`
+    }],
+    tip: 'Leadás előtt: minden eszközön `show ip interface brief` (up/up), egy ping minden telephely között, és mentés mindenhol.'
+  },
+  {
+    id: 'gyakorlo-labor',
+    category: 'segedlet',
+    title: 'Gyakorlófeladat: 3 telephely, teljes végigvitel',
+    desc: 'Kész címterv és feladatsor: DHCP, DNS, web, mail, TFTP, SSH, NAT/PAT és IoT egy topológiában.',
+    blocks: [
+      {
+        label: 'Címterv',
+        lang: 'table',
+        head: ['Telephely', 'Eszköz', 'Interfész / mód', 'IP-cím', 'Átjáró'],
+        rows: [
+          ['A – TFTP', 'R1', 'g0/0 (LAN)', '192.168.10.1 /24', '–'],
+          ['A – TFTP', 'R1', 'g0/1 (R2 felé)', '10.0.12.1 /30', '–'],
+          ['A – TFTP', 'TFTP szerver', 'fix cím', '192.168.10.10 /24', '192.168.10.1'],
+          ['A – TFTP', 'PC', 'DHCP', '192.168.10.21-től', '192.168.10.1'],
+          ['B – MAIL, DNS', 'R2', 'g0/0 (LAN)', '192.168.20.1 /24', '–'],
+          ['B – MAIL, DNS', 'R2', 'g0/1 (R1 felé)', '10.0.12.2 /30', '–'],
+          ['B – MAIL, DNS', 'R2', 'g0/2 (R3 felé)', '10.0.23.1 /30', '–'],
+          ['B – MAIL, DNS', 'Mail szerver', 'fix cím', '192.168.20.10 /24', '192.168.20.1'],
+          ['B – MAIL, DNS', 'DNS szerver', 'fix cím', '192.168.20.11 /24', '192.168.20.1'],
+          ['C – WEB', 'R3', 'g0/0 (LAN)', '192.168.30.1 /24', '–'],
+          ['C – WEB', 'R3', 'g0/1 (R2 felé)', '10.0.23.2 /30', '–'],
+          ['C – WEB', 'Web szerver', 'fix cím', '192.168.30.10 /24', '192.168.30.1'],
+          ['C – WEB', 'Laptop', 'DHCP', '192.168.30.21-től', '192.168.30.1']
+        ]
+      },
+      {
+        label: 'Feladatok',
+        lang: 'steps',
+        code: `
+Alapok mindhárom routeren: hostname, \`enable secret\`, konzol- és VTY-jelszó, banner, IP-címek, \`no shutdown\`
+Routing: OSPF 1-es folyamat, area 0 minden hálózatra, a LAN felé \`passive-interface\` – teszt: ping a telephelyek között
+DHCP: R1 a PC-nek, R3 a laptopnak oszt címet, mindkét poolban \`dns-server 192.168.20.11\`, az első 20 cím kizárva
+Szerverek beállítása fix címmel, majd a DNS, HTTP, EMAIL és TFTP szolgáltatás bekapcsolása
+DNS rekordok: \`www.ceg.hu\` → 192.168.30.10, \`mail.ceg.hu\` → 192.168.20.10, \`tftp.ceg.hu\` → 192.168.10.10
+Mail: domain \`ceg.hu\`, két felhasználó (anna, bela) – anna az A telephelyről írjon Belának a C telephelyre
+TFTP: mentsd el mindhárom router konfigját a szerverre (\`copy running-config tftp:\`)
+SSH mindhárom routeren, Telnet tiltva, belépés a PC-ről: \`ssh -l admin 192.168.10.1\`
+NAT/PAT: ISP router az R3 g0/2 portjára (203.0.113.0/30), mögötte egy szerver. PAT a belső hálózatokra, port-továbbítás a webszerverre, az OSPF-ben \`default-information originate\`
+IoT: IoT szolgáltatás a szerveren, a C telephelyre mozgásérzékelő és garázsajtó DHCP-vel, végül feltételes szabály`
+      },
+      {
+        label: 'Ellenőrző lista',
+        lang: 'text',
+        code: `
+Ping minden telephely között működik
+\`nslookup www.ceg.hu\` feloldja a nevet
+Böngészőből betölt a \`http://www.ceg.hu\`
+A levél megérkezik az A telephelyről a C telephelyre
+A router konfigja megjelenik a TFTP szerver fájllistájában
+SSH-val be tudsz lépni, Telnettel nem
+A \`show ip nat translations\` mutat fordításokat
+A mozgásérzékelőre kinyílik a garázsajtó`
+      }
+    ],
+    tip: 'Ha soros linket kérnek a routerek közé: kapcsold ki a routert, tedd bele a HWIC-2T modult, kapcsold vissza, és a DCE oldalon add meg a `clock rate 64000` értéket. Gigabit porttal összekötve nincs szükség órajelre.'
+  },
 
   /* =====================================================================
    * ALAPOK
