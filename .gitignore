@@ -3,3 +3,6 @@
 
 # Iskolai forrásanyagok és órarend (nem nyilvános)
 Suli/
+
+# Helyi felületteszt álcaadatbázissal (node _teszt/general.js)
+_teszt/

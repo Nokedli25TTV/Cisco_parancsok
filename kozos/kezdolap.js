@@ -3,17 +3,23 @@
 /* =========================================================================
  * Osztályoldal – kezdolap.js
  * Mai dátum, „most hányadik óra van”, visszaszámlálók.
- * Adatok: adatok.js (CSENGETES, VISSZASZAMLALOK) + a saját visszaszámlálók
- * a böngésző tárhelyén.
+ * Nyilvános adatok: adatok.js (CSENGETES, VISSZASZAMLALOK) + a saját
+ * visszaszámlálók a böngésző tárhelyén.
+ * Belépett tagnak ezen felül: hirdetések, a mai órái tantárggyal és teremmel,
+ * és a naptár közelgő eseményei a visszaszámlálók között.
  * ========================================================================= */
 
 const CD_KEY = 'hub-visszaszamlalok';
 const $ = (id) => document.getElementById(id);
 
+/** Belépős adatok; null = nincs betöltve (kilépett látogató) */
+const privat = { orak: null, esemenyek: [] };
+
 const toMin = (hhmm) => {
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + m;
 };
+const bell = (n) => CSENGETES.find((c) => c[0] === n);
 
 /* ---------- Dátum ---------- */
 function isoWeek(d) {
@@ -31,9 +37,28 @@ function renderToday(now) {
 }
 
 /* ---------- Most: óra vagy szünet ---------- */
+/** A belépett tag mai órája az adott sorszámú órában (ha van) */
+const lessonAt = (n) => (privat.orak || []).find((r) => n >= r.ora_tol && n <= r.ora_ig);
+const lessonText = (r) => (r ? `${r.targy}${r.terem ? ` (${r.terem})` : ''}` : '');
+
 function renderBells() {
+  if (privat.orak) {
+    $('bellLabel').textContent = 'Mai óráid';
+    $('bells').className = 'bells bells-own';
+    $('bells').innerHTML = privat.orak.length
+      ? privat.orak.map((r) => {
+        const a = bell(r.ora_tol);
+        const b = bell(r.ora_ig);
+        const orak = r.ora_tol === r.ora_ig ? `${r.ora_tol}.` : `${r.ora_tol}–${r.ora_ig}.`;
+        return `<li data-from="${r.ora_tol}" data-to="${r.ora_ig}"><b>${orak}</b>${a && b ? `${a[1]}–${b[2]}` : ''} <span>${Hub.esc(lessonText(r))}</span></li>`;
+      }).join('')
+      : '<li>Ma nincs órád.</li>';
+    return;
+  }
+  $('bellLabel').textContent = 'Csengetési rend';
+  $('bells').className = 'bells';
   $('bells').innerHTML = CSENGETES
-    .map(([n, a, b]) => `<li data-n="${n}"><b>${n}.</b>${a}–${b}</li>`)
+    .map(([n, a, b]) => `<li data-from="${n}" data-to="${n}"><b>${n}.</b>${a}–${b}</li>`)
     .join('');
 }
 
@@ -50,21 +75,28 @@ const perc = (n) => `${n} perc`;
 function renderNow(now) {
   const min = now.getHours() * 60 + now.getMinutes();
   const day = now.getDay();
+  const own = privat.orak;                           // null, ha nincs belépve
   let current = 0;
 
   if (day === 0 || day === 6) {
     setNow('Hétvége', 'Hétfőn 07:30-kor kezdődik az 1. óra.', null);
+  } else if (own && !own.length) {
+    setNow('Ma nincs órád', 'Az órarended szerint ma szabad vagy.', null);
   } else {
-    const first = toMin(CSENGETES[0][1]);
-    const last = toMin(CSENGETES[CSENGETES.length - 1][2]);
+    // Belépve a saját első és utolsó óra számít, különben a teljes csengetési rend
+    const firstBell = (own && bell(Math.min(...own.map((r) => r.ora_tol)))) || CSENGETES[0];
+    const lastBell = (own && bell(Math.max(...own.map((r) => r.ora_ig)))) || CSENGETES[CSENGETES.length - 1];
+    const first = toMin(firstBell[1]);
+    const last = toMin(lastBell[2]);
 
     if (min < first) {
       const left = first - min;
+      const mit = own ? ` – ${lessonText(lessonAt(firstBell[0]))}` : '';
       setNow('Még nincs tanítás', left <= 120
-        ? `Az 1. óra ${perc(left)} múlva kezdődik (${CSENGETES[0][1]}).`
-        : `Az 1. óra ${CSENGETES[0][1]}-kor kezdődik.`, null);
+        ? `A(z) ${firstBell[0]}. óra ${perc(left)} múlva kezdődik (${firstBell[1]})${mit}.`
+        : `A(z) ${firstBell[0]}. óra ${firstBell[1]}-kor kezdődik${mit}.`, null);
     } else if (min >= last) {
-      setNow('Mára vége a tanításnak', 'Holnap is lesz nap. Addig: gyakorló?', null);
+      setNow(own ? 'Mára végeztél' : 'Mára vége a tanításnak', 'Holnap is lesz nap. Addig: gyakorló?', null);
     } else {
       for (let i = 0; i < CSENGETES.length; i++) {
         const [n, a, b] = CSENGETES[i];
@@ -72,13 +104,17 @@ function renderNow(now) {
         const end = toMin(b);
         if (min >= start && min < end) {
           current = n;
-          setNow(`${n}. óra`, `Még ${perc(end - min)} – kicsengetés ${b}-kor.`, (min - start) / (end - start));
+          const r = lessonAt(n);
+          const big = r ? `${n}. óra – ${r.targy}` : `${n}. óra`;
+          const extra = own ? (r ? (r.terem ? ` Terem: ${r.terem}.` : '') : ' Neked most lyukasórád van.') : '';
+          setNow(big, `Még ${perc(end - min)} – kicsengetés ${b}-kor.${extra}`, (min - start) / (end - start));
           break;
         }
         const next = CSENGETES[i + 1];
         if (next && min >= end && min < toMin(next[1])) {
           const nextStart = toMin(next[1]);
-          setNow('Szünet', `A(z) ${next[0]}. óra ${perc(nextStart - min)} múlva kezdődik (${next[1]}).`,
+          const r = lessonAt(next[0]);
+          setNow('Szünet', `A(z) ${next[0]}. óra ${perc(nextStart - min)} múlva kezdődik (${next[1]})${r ? ` – ${lessonText(r)}` : ''}.`,
             (min - end) / (nextStart - end));
           break;
         }
@@ -86,8 +122,8 @@ function renderNow(now) {
     }
   }
 
-  $('bells').querySelectorAll('li').forEach((li) => {
-    if (Number(li.dataset.n) === current) li.setAttribute('data-now', '');
+  $('bells').querySelectorAll('li[data-from]').forEach((li) => {
+    if (current && current >= Number(li.dataset.from) && current <= Number(li.dataset.to)) li.setAttribute('data-now', '');
     else li.removeAttribute('data-now');
   });
 }
@@ -104,8 +140,9 @@ function renderCountdowns() {
   const now = new Date();
   const own = Hub.store.get(CD_KEY, []);
   const all = [
-    ...VISSZASZAMLALOK.map((c) => ({ ...c, own: false })),
-    ...own.map((c) => ({ ...c, own: true }))
+    ...VISSZASZAMLALOK.map((c) => ({ ...c, kind: 'kozos' })),
+    ...own.map((c) => ({ ...c, kind: 'sajat' })),
+    ...privat.esemenyek.map((e) => ({ nev: e.cim, datum: e.datum, kind: 'naptar', cimke: e.cimke }))
   ]
     .map((c) => ({ ...c, days: daysUntil(c.datum, now) }))
     .filter((c) => c.days >= 0 && !Number.isNaN(c.days))
@@ -127,8 +164,8 @@ function renderCountdowns() {
       <article class="cd"${c.days <= 3 ? ' data-soon' : ''}>
         <p class="cd-num">${num}${unit}</p>
         <p class="cd-name">${Hub.esc(c.nev)}</p>
-        <p class="cd-date">${dateText}</p>
-        ${c.own ? `<button class="cd-del" type="button" data-id="${Hub.esc(c.id)}" aria-label="${Hub.esc(c.nev)} törlése" title="Törlés">✕</button>` : ''}
+        <p class="cd-date">${c.kind === 'naptar' ? `${Hub.esc(c.cimke)} · ` : ''}${dateText}</p>
+        ${c.kind === 'sajat' ? `<button class="cd-del" type="button" data-id="${Hub.esc(c.id)}" aria-label="${Hub.esc(c.nev)} törlése" title="Törlés">✕</button>` : ''}
       </article>`;
   }).join('');
 }
@@ -163,6 +200,123 @@ function renderPracticeMeta() {
   if (last) $('practiceMeta').textContent = `legutóbbi próbavizsga: ${last.pct}%`;
 }
 
+/* =========================================================================
+ * BELÉPŐS RÉSZ: hirdetések, mai órák, naptár
+ * A Supabase-könyvtár csak annak töltődik be, aki ezen az eszközön már
+ * belépett – a nyilvános látogatónak a kezdőlap ugyanolyan könnyű marad.
+ * ========================================================================= */
+const TIPUS_CIMKE = { doga: 'Doga', beadando: 'Beadandó', vizsga: 'Vizsga', szunet: 'Szünet', egyeb: 'Naptár' };
+
+const loadScript = (src) => new Promise((resolve, reject) => {
+  const s = document.createElement('script');
+  s.src = src;
+  s.onload = resolve;
+  s.onerror = reject;
+  document.head.appendChild(s);
+});
+
+function renderNotices(list) {
+  const section = $('hirdetesek');
+  const canEdit = Fiok.szerkeszto();
+  section.hidden = !list.length && !canEdit;
+
+  $('noticeList').innerHTML = list.length
+    ? list.map((h) => `
+      <article class="notice"${h.kituzve ? ' data-pinned' : ''} data-id="${h.id}">
+        <p class="notice-text">${Hub.esc(h.szoveg)}</p>
+        <p class="notice-meta">
+          ${h.kituzve ? 'kitűzve · ' : ''}${new Date(h.letrehozva).toLocaleDateString('hu-HU', { month: 'long', day: 'numeric' })}
+          ${canEdit ? ' · <button class="link-btn" type="button" data-del>törlés</button>' : ''}
+        </p>
+      </article>`).join('')
+    : '<p class="empty-note">Nincs hirdetés.</p>';
+
+  $('noticeForm').hidden = !canEdit;
+}
+
+async function loadPrivate() {
+  const today = Hub.dayKey();
+  const nap = new Date().getDay();
+  const csoport = Hub.store.get('hub-csoport', null) || Fiok.profil.csoport || 'A';
+  const until = new Date();
+  until.setDate(until.getDate() + 45);
+
+  const [hird, orak, esem] = await Promise.all([
+    Fiok.db.from('hirdetesek').select('*').or(`lejar.is.null,lejar.gte.${today}`)
+      .order('kituzve', { ascending: false }).order('letrehozva', { ascending: false }).limit(10),
+    Fiok.db.from('orarend').select('*').eq('nap', nap).order('ora_tol'),
+    Fiok.db.from('esemenyek').select('cim,tipus,datum').gte('datum', today).lte('datum', Hub.dayKey(until))
+      .order('datum').limit(6)
+  ]);
+
+  if (!hird.error) renderNotices(hird.data);
+  if (!orak.error) privat.orak = orak.data.filter((r) => r.csoport === 'mind' || r.csoport === csoport);
+  if (!esem.error) privat.esemenyek = esem.data.map((e) => ({ ...e, cimke: TIPUS_CIMKE[e.tipus] || 'Naptár' }));
+
+  renderBells();
+  renderNow(new Date());
+  renderCountdowns();
+}
+
+function bindNotices() {
+  $('noticeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const szoveg = $('noticeText').value.trim();
+    if (!szoveg) return;
+    const { error } = await Fiok.db.from('hirdetesek').insert({
+      szoveg,
+      kituzve: $('noticePin').checked,
+      lejar: $('noticeUntil').value || null
+    });
+    $('noticeMsg').textContent = error ? Fiok.hiba(error) : '';
+    if (!error) {
+      e.target.reset();
+      loadPrivate();
+    }
+  });
+
+  $('noticeList').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-del]');
+    if (!btn) return;
+    if (!window.confirm('Biztosan törlöd ezt a hirdetést?')) return;
+    const { error } = await Fiok.db.from('hirdetesek').delete().eq('id', btn.closest('.notice').dataset.id);
+    if (error) window.alert(Fiok.hiba(error));
+    else loadPrivate();
+  });
+}
+
+async function initPrivate() {
+  const note = $('privatNote');
+  if (!Hub.config.key) return;                       // az adatbázis még nincs bekapcsolva
+
+  if (!Hub.store.get('hub-fiok', null)) {
+    note.innerHTML = `Az osztály tagjainak naptár, órarend és hirdetések is járnak: <a href="belepes/">lépj be vagy regisztrálj</a>.`;
+    return;
+  }
+
+  try {
+    if (!window.supabase) await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+    await loadScript('kozos/fiok.js');
+  } catch (e) {
+    return;                                          // nincs net: marad a nyilvános nézet
+  }
+
+  await Fiok.betolt();
+  if (!Fiok.user) {
+    note.innerHTML = `Lejárt a belépésed: <a href="belepes/">lépj be újra</a> a naptárhoz és az órarendhez.`;
+    return;
+  }
+  if (!Fiok.tag()) {
+    note.innerHTML = `A regisztrációd jóváhagyásra vár. Amint egy admin jóváhagyja, itt megjelenik a naptár és az órarended.`;
+    return;
+  }
+
+  note.textContent = '';
+  bindNotices();
+  await loadPrivate();
+  Fiok.figyel('kezdolap', ['hirdetesek', 'orarend', 'esemenyek'], loadPrivate);
+}
+
 /* ---------- Indítás ---------- */
 function tick() {
   const now = new Date();
@@ -175,6 +329,7 @@ tick();
 renderCountdowns();
 bindCountdowns();
 renderPracticeMeta();
+initPrivate();
 setInterval(tick, 15000);
 /* Éjfél után a napok száma is változik */
 setInterval(renderCountdowns, 10 * 60000);

@@ -147,6 +147,9 @@ kbd {
   background: color-mix(in oklch, var(--accent) 16%, transparent);
 }
 
+.hub-actions { display: flex; align-items: center; gap: 8px; }
+.hub-actions .btn-small { min-height: 36px; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 34px; }
+
 .icon-btn {
   display: inline-grid;
   place-items: center;
@@ -776,21 +779,200 @@ kbd {
 }
 .history li:last-child { border-bottom: 0; }
 
+/* ---------- 7b. Belépős részek: űrlapok, fiók, naptár, órarend, hirdetések ---------- */
+.head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.gate { display: grid; gap: 10px; justify-items: start; max-width: 560px; }
+
+.form { display: grid; gap: 16px; }
+.form-cols { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.form-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.form-cols .span-2 { grid-column: span 2; }
+.form-note { font-size: 14px; font-weight: 500; }
+.form-note:empty { display: none; }
+
+.field.area { min-height: 0; padding: 9px 12px; line-height: 1.5; resize: vertical; }
+.field.file { padding: 8px 12px; height: auto; }
+.field-small { width: auto; min-height: 32px; padding: 0 8px; font-size: 13.5px; border-radius: 8px; }
+select.field { appearance: auto; }
+
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--accent) 16%, transparent);
+  color: var(--fg);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge[data-warn] { background: color-mix(in srgb, var(--t-str) 22%, transparent); }
+.badge[data-tone] { background: color-mix(in oklch, var(--tone) 20%, transparent); }
+
+.kv {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 16px;
+  overflow-wrap: anywhere;
+}
+
+.members { display: grid; gap: 0; padding-top: 6px; padding-bottom: 6px; }
+.member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.member:last-of-type { border-bottom: 0; }
+.member-name { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.member-name .faint { font-size: 13px; }
+.member-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.dialog {
+  width: min(600px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-card);
+  background: var(--card);
+  color: var(--fg);
+  overflow-y: auto;
+}
+.dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.check { display: inline-flex; align-items: center; gap: 8px; color: var(--fg-muted); font-size: 14px; }
+.check input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
+
+/* Naptár */
+.ev-list { margin-top: 18px; }
+.ev-month + .ev-month { margin-top: 26px; }
+.ev-month > .eyebrow { margin-bottom: 10px; }
+
+.ev {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--tone);
+  border-radius: 4px var(--radius-card) var(--radius-card) 4px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+.ev + .ev { margin-top: 10px; }
+
+.ev-date { display: grid; align-content: start; justify-items: center; color: var(--fg-muted); font-size: 13px; line-height: 1.3; }
+.ev-date b { color: var(--fg); font: 600 28px/1.1 var(--font-mono); }
+
+.ev-body { display: grid; gap: 8px; min-width: 0; }
+.ev-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--fg-muted); font-size: 13.5px; }
+.ev-when { margin-left: auto; font-weight: 600; white-space: nowrap; }
+.ev-title { font-size: 17.5px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.ev-desc { color: var(--fg-muted); white-space: pre-line; overflow-wrap: anywhere; }
+.ev-todo { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.ev-todo label { display: flex; align-items: flex-start; gap: 10px; padding: 5px 0; cursor: pointer; }
+.ev-todo input { flex: none; width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
+.ev-todo input:checked + span { color: var(--fg-faint); text-decoration: line-through; }
+.ev-actions { margin-top: 2px; }
+
+/* Órarend */
+.week {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: start;
+}
+.day { display: grid; gap: 8px; align-content: start; }
+.day-name { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 600; }
+.day[data-today] .day-name { border-bottom-color: var(--accent); }
+.day-empty { padding: 8px 0; font-size: 14px; }
+
+.lesson {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--card);
+}
+.lesson[data-now] { border-color: var(--accent); background: color-mix(in oklch, var(--accent) 12%, var(--card)); }
+.lesson-time { color: var(--fg-faint); font: 500 12px/1.5 var(--font-mono); }
+.lesson-name { font-size: 15px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.lesson-meta { color: var(--fg-muted); font-size: 13px; }
+.lesson .btn { justify-self: start; margin-top: 6px; }
+
+/* Hirdetések a kezdőlapon */
+.notices { margin-bottom: 20px; }
+.notices > .eyebrow { margin-bottom: 8px; }
+.notice {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: 4px 11px 11px 4px;
+  background: var(--card);
+}
+.notice + .notice { margin-top: 8px; }
+.notice[data-pinned] { border-left-color: var(--t-str); }
+.notice-text { white-space: pre-line; overflow-wrap: anywhere; }
+.notice-meta { margin-top: 4px; color: var(--fg-faint); font-size: 13px; }
+.notice-form { display: grid; gap: 8px; margin-top: 12px; }
+.notice-form-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.notice-form-row .btn { margin-left: auto; }
+
+/* Kezdőlap: a belépett tag mai órái a csengetési rend helyén */
+.bells-own { grid-template-columns: minmax(0, 1fr); }
+.bells-own b { width: 4.2ch; }
+.bells-own span { color: var(--fg); font-family: var(--font-ui); font-size: 14px; }
+
 /* ---------- 8. Reszponzív, nyomtatás ---------- */
 @media (max-width: 860px) {
   .notes-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .notes-toc { position: static; max-height: none; }
   .notes-toc[data-open-note] { display: none; }
   .now { grid-template-columns: minmax(0, 1fr); }
+  .week { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .day[data-today] { order: -1; }
 }
 
 @media (max-width: 640px) {
   :root { --gutter: 16px; }
   .hubbar-inner { padding-bottom: 6px; }
   .hub-brand { font-size: 15px; }
-  .hub-nav { order: 3; width: 100%; margin-left: 0; }
-  .hub-nav { gap: 0; }
-  .hub-nav a { flex: 1; padding: 7px 0; font-size: 13.5px; text-align: center; }
+  /* A menü külön sorba kerül és vízszintesen görgethető; a jobb szélén elhalványul */
+  .hub-nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+  .hub-nav a { padding: 7px 10px; font-size: 14px; }
+  .hub-nav a:last-child { margin-right: 24px; }
+  .form-cols, .form-cols-4 { grid-template-columns: minmax(0, 1fr); }
+  .form-cols .span-2 { grid-column: auto; }
+  .ev { grid-template-columns: 48px minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .ev-date b { font-size: 24px; }
+  .ev-when { margin-left: 0; }
+  .dialog { padding: 18px 16px; }
   .hub-actions { margin-left: auto; }
   .page { padding-top: 20px; }
   .page-title { font-size: 24px; }

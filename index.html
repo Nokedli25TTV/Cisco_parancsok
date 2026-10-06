@@ -37,6 +37,22 @@
       <h1 id="todayTitle" class="page-title"></h1>
     </div>
 
+    <!-- ===== Hirdetések (csak belépett tagnak; a JS tölti fel és jeleníti meg) ===== -->
+    <section id="hirdetesek" class="notices" aria-labelledby="noticeTitle" hidden>
+      <h2 id="noticeTitle" class="eyebrow">Hirdetések</h2>
+      <div id="noticeList"></div>
+      <form id="noticeForm" class="notice-form" hidden>
+        <label class="label" for="noticeText">Új hirdetés</label>
+        <textarea id="noticeText" class="field area" rows="2" maxlength="600" placeholder="pl. Holnap elmarad az 1. óra" required></textarea>
+        <div class="notice-form-row">
+          <label class="check"><input id="noticePin" type="checkbox"> Kitűzöm</label>
+          <label class="check">Eddig látszik: <input id="noticeUntil" class="field field-small" type="date"></label>
+          <button class="btn btn-small btn-primary" type="submit">Közzéteszem</button>
+        </div>
+        <p id="noticeMsg" class="form-note bad" role="alert"></p>
+      </form>
+    </section>
+
     <!-- ===== Most: hányadik óra van, mennyi van még hátra ===== -->
     <div class="now">
       <section class="panel" aria-labelledby="nowLabel">
@@ -96,7 +112,7 @@
           <span id="practiceMeta" class="tile-meta">még nem volt próbavizsgád</span>
         </a>
       </div>
-      <p class="section-note" style="margin-top:14px">Naptár, órarend és hirdetések: belépéssel, a következő lépésben érkeznek.</p>
+      <p id="privatNote" class="section-note" style="margin-top:14px"></p>
     </section>
   </main>
 

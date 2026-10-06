@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="hu" data-theme="dark" data-root=".." data-page="naptar">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="robots" content="noindex">
+  <title>Naptár – Osztályoldal</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+
+  <script>
+    /* Mentett téma alkalmazása még a kirajzolás előtt (nincs villanás) */
+    try {
+      var savedTheme = localStorage.getItem('pt-cheatsheet-theme');
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      }
+    } catch (e) { /* tárhely nem elérhető – marad a sötét téma */ }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+  <link rel="stylesheet" href="../kozos/tema.css">
+  <link rel="stylesheet" href="../kozos/hub.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Ugrás a tartalomhoz</a>
+  <header id="hubbar"></header>
+
+  <!-- ===== Események listája (JS tölti fel, belépés után) ===== -->
+  <main id="main" class="page page-narrow" tabindex="-1"></main>
+
+  <!-- ===== Esemény felvétele / szerkesztése (csak szerkesztőknek) ===== -->
+  <dialog id="evDialog" class="dialog" aria-labelledby="evDialogTitle">
+    <form id="evForm" class="form" novalidate>
+      <h2 id="evDialogTitle" class="section-title">Új esemény</h2>
+      <div>
+        <label class="label" for="evCim">Megnevezés</label>
+        <input id="evCim" class="field" type="text" maxlength="120" required placeholder="pl. OSPF témazáró">
+      </div>
+      <div>
+        <span class="label">Típus</span>
+        <div id="evTipus" class="chip-row"></div>
+      </div>
+      <div class="form-cols">
+        <div>
+          <label class="label" for="evDatum">Dátum</label>
+          <input id="evDatum" class="field" type="date" required>
+        </div>
+        <div>
+          <label class="label" for="evIdo">Időpont (nem kötelező)</label>
+          <input id="evIdo" class="field" type="time">
+        </div>
+      </div>
+      <div class="form-cols">
+        <div>
+          <label class="label" for="evTargy">Tantárgy (nem kötelező)</label>
+          <input id="evTargy" class="field" type="text" maxlength="60" list="evTargyak">
+          <datalist id="evTargyak"></datalist>
+        </div>
+        <div>
+          <label class="label" for="evVeg">Utolsó nap, ha többnapos</label>
+          <input id="evVeg" class="field" type="date">
+        </div>
+      </div>
+      <div>
+        <label class="label" for="evLeiras">Leírás (nem kötelező)</label>
+        <textarea id="evLeiras" class="field area" rows="3" maxlength="2000" placeholder="Mit kell tudni, mit kell vinni…"></textarea>
+      </div>
+      <div>
+        <label class="label" for="evTeendok">Teendők – soronként egy (nem kötelező)</label>
+        <textarea id="evTeendok" class="field area" rows="3" placeholder="Jegyzet átnézése&#10;Gyakorló kvíz&#10;PT labor befejezése"></textarea>
+      </div>
+      <div>
+        <label class="label" for="evLink">Link (nem kötelező)</label>
+        <input id="evLink" class="field" type="url" placeholder="https://…">
+      </div>
+      <div id="evMsg"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="submit">Mentés</button>
+        <button id="evCancel" class="btn" type="button">Mégse</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="../kozos/hub.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../kozos/fiok.js"></script>
+  <script src="naptar.js"></script>
+</body>
+</html>
