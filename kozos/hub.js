@@ -20,7 +20,7 @@ const Hub = (() => {
    *  Üres kulcsnál a belépős menüpontok nem jelennek meg. */
   const config = {
     url: 'https://yrqpwajcsasxkiqlkrnl.supabase.co',
-    key: ''
+    key: 'sb_publishable_gOeYEDcClEhqLaPyT8weUw_9e2kZhlO'
   };
 
   /** Új modul felvétele: ide egy sor, és a fejlécben minden lapon megjelenik.
