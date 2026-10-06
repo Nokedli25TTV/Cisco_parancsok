@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="hu" data-theme="dark" data-root=".." data-page="jegyzetek">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Jegyzetek – Osztályoldal</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📓</text></svg>">
+
+  <script>
+    /* Mentett téma alkalmazása még a kirajzolás előtt (nincs villanás) */
+    try {
+      var savedTheme = localStorage.getItem('pt-cheatsheet-theme');
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      }
+    } catch (e) { /* tárhely nem elérhető – marad a sötét téma */ }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+  <link rel="stylesheet" href="../kozos/tema.css">
+  <link rel="stylesheet" href="../kozos/hub.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Ugrás a tartalomhoz</a>
+  <header id="hubbar"></header>
+
+  <div class="page notes-layout">
+    <!-- ===== Tartalomjegyzék tantárgyanként (JS tölti fel) ===== -->
+    <nav id="toc" class="notes-toc" aria-label="Jegyzetek tantárgyanként"></nav>
+
+    <!-- ===== Áttekintés vagy a megnyitott jegyzet (JS tölti fel) ===== -->
+    <main id="main" tabindex="-1"></main>
+  </div>
+
+  <script src="../kozos/hub.js"></script>
+  <script src="data.js"></script>
+  <script src="jegyzetek.js"></script>
+</body>
+</html>
