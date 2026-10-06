@@ -60,8 +60,24 @@ function renderWeek() {
   const period = currentPeriod(now);
   // Szerkesztéskor mindkét csoport órái látszanak
   const visible = state.rows.filter((r) => state.edit || r.csoport === 'mind' || r.csoport === state.csoport);
+  const week = main.querySelector('#week');
 
-  main.querySelector('#week').innerHTML = NAPOK.map((nev, i) => {
+  // Üres adatbázis: mondjuk meg, mi a teendő, ne öt üres nap látsszon
+  week.classList.toggle('week-empty', !state.rows.length && !state.edit);
+  if (!state.rows.length && !state.edit) {
+    week.innerHTML = Fiok.szerkeszto()
+      ? `<div class="empty-note">
+           <p><strong>Az órarend még üres.</strong> Kétféleképp töltheted fel:</p>
+           <ul>
+             <li>egyben: a <a href="../belepes/">Fiók oldalon</a> az „Induló adatok betöltése” résznél válaszd ki a <code>Suli/indulo-adatok.json</code> fájlt${Fiok.admin() ? '' : ' (ehhez admin kell)'},</li>
+             <li>kézzel: itt fent a <strong>Szerkesztés</strong> gombbal óránként.</li>
+           </ul>
+         </div>`
+      : '<p class="empty-note">Az órarendet még nem töltötték fel. Szólj egy adminnak vagy szerkesztőnek.</p>';
+    return;
+  }
+
+  week.innerHTML = NAPOK.map((nev, i) => {
     const nap = i + 1;
     const list = visible.filter((r) => r.nap === nap);
     return `
