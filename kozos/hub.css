@@ -790,6 +790,30 @@ kbd {
 
 .gate { display: grid; gap: 10px; justify-items: start; max-width: 560px; }
 
+/* Belépés / Regisztráció váltó */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--code-bg);
+}
+.tab {
+  min-height: 40px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.tab:hover { color: var(--fg); }
+.tab[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+
 .form { display: grid; gap: 16px; }
 .form-cols { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .form-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }

@@ -24,6 +24,10 @@ function viewAuth(mode, message) {
         ? 'Regisztráció után egy adminnak jóvá kell hagynia – addig a naptár és az órarend nem látszik.'
         : 'A naptár, az órarend és a hirdetések csak az osztály tagjainak látszanak.'}</p>
     </div>
+    <div class="tabs" role="group" aria-label="Belépés vagy regisztráció">
+      <button class="tab" type="button" data-mode="login" aria-pressed="${!reg}">Belépés</button>
+      <button class="tab" type="button" data-mode="reg" aria-pressed="${reg}">Regisztráció</button>
+    </div>
     <form id="authForm" class="panel form" novalidate>
       ${reg ? `
         <div>
@@ -48,9 +52,10 @@ function viewAuth(mode, message) {
       <div id="authMsg">${note(message)}</div>
       <div class="btn-row">
         <button id="authBtn" class="btn btn-primary" type="submit">${reg ? 'Regisztrálok' : 'Belépek'}</button>
-        <button id="authSwitch" class="btn" type="button">${reg ? 'Már van fiókom' : 'Még nincs fiókom'}</button>
       </div>
-      ${reg ? '' : '<p class="section-note">Elfelejtetted a jelszavad? Szólj az adminnak, ő tud újat beállítani.</p>'}
+      <p class="section-note">${reg
+        ? 'Már van fiókod? <button class="link-btn" type="button" data-mode="login">Lépj be</button>.'
+        : 'Még nincs fiókod? <button class="link-btn" type="button" data-mode="reg">Regisztrálj itt</button>. Elfelejtett jelszónál szólj az adminnak.'}</p>
     </form>`;
 
   let csoport = null;
@@ -65,7 +70,9 @@ function viewAuth(mode, message) {
     });
   }
 
-  form.querySelector('#authSwitch').addEventListener('click', () => viewAuth(reg ? 'login' : 'reg'));
+  main.querySelectorAll('[data-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => { if (btn.dataset.mode !== mode) viewAuth(btn.dataset.mode); });
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
