@@ -160,7 +160,7 @@ function bindCountdowns() {
 function renderPracticeMeta() {
   const data = Hub.store.get('hub-gyakorlo', {});
   const last = (data.vizsgak || [])[0];
-  if (last) $('practiceMeta').textContent = `legutóbbi próbavizsga: ${last.pct}% (${last.jegy})`;
+  if (last) $('practiceMeta').textContent = `legutóbbi próbavizsga: ${last.pct}%`;
 }
 
 /* ---------- Indítás ---------- */

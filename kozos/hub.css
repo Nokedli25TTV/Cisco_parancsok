@@ -643,8 +643,18 @@ kbd {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
-.result-grade { margin-top: 8px; font-size: 18px; font-weight: 600; }
-.result-sub { margin-top: 4px; color: var(--fg-muted); }
+.result-sub { margin-top: 6px; color: var(--fg-muted); }
+.grades { display: grid; gap: 0; margin: 14px 0 0; }
+.grades > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.grades dt { color: var(--fg-muted); }
+.grades dd { margin: 0; font-weight: 600; white-space: nowrap; }
 
 .review { display: grid; gap: 10px; margin-top: 14px; }
 .review-item {

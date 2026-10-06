@@ -21,7 +21,7 @@
 const { esc, rich, store, shuffle, dayKey } = Hub;
 const main = document.getElementById('main');
 
-const STAT_KEY = 'hub-gyakorlo';     // { temak: { id: { ok, ossz } }, vizsgak: [{ d, pct, jegy, n }] }
+const STAT_KEY = 'hub-gyakorlo';     // { temak: { id: { ok, ossz } }, vizsgak: [{ d, pct, n }] }
 const CARD_KEY = 'hub-kartyak';      // { kártyaId: { b: doboz 1–5, d: 'ÉÉÉÉ-HH-NN' mikor esedékes } }
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
@@ -47,13 +47,20 @@ function addStat(tema, ok) {
   store.set(STAT_KEY, data);
 }
 
-function grade(pct) {
-  if (pct >= 85) return 'jeles (5)';
-  if (pct >= 70) return 'jó (4)';
-  if (pct >= 55) return 'közepes (3)';
-  if (pct >= 40) return 'elégséges (2)';
-  return 'elégtelen (1)';
-}
+/** Jegyhatárok: dolgozatonként változik, ezért az eredmény mindkettő szerint megjelenik.
+ *  hatarok: hány százaléktól jár a 2-es, 3-as, 4-es, 5-ös. */
+const JEGYHATAROK = [
+  { id: 'rendes',  nev: 'Rendes határokkal',  hatarok: [40, 55, 70, 85] },
+  { id: 'szigoru', nev: 'Szigorú határokkal', hatarok: [70, 80, 90, 95] }
+];
+const JEGYNEVEK = ['elégtelen (1)', 'elégséges (2)', 'közepes (3)', 'jó (4)', 'jeles (5)'];
+
+const grade = (pct, hatarok) => JEGYNEVEK[hatarok.filter((h) => pct >= h).length];
+
+/** "rendes: jó (4) · szigorú: elégséges (2)" */
+const gradesShort = (pct) => JEGYHATAROK
+  .map((j) => `${j.id === 'rendes' ? 'rendes' : 'szigorú'}: ${grade(pct, j.hatarok)}`)
+  .join(' · ');
 
 /** Témaválasztó gombsor: több is kijelölhető, legalább egy marad */
 function chipsHtml(list, selected, counts) {
@@ -209,7 +216,7 @@ function viewMenu() {
     parancs: `${PARANCSFELADATOK.length} feladat`,
     alhalo: 'végtelen feladat',
     kartyak: due ? `${due} kártya ismétlésre vár` : `${allCards().length} kártya`,
-    vizsga: last ? `legutóbb ${last.pct}% – ${last.jegy}` : 'még nem volt'
+    vizsga: last ? `legutóbb ${last.pct}%` : 'még nem volt'
   };
 
   setView(`
@@ -230,7 +237,7 @@ function viewMenu() {
       <section class="section stage">
         <div class="section-head"><h2 class="section-title">Korábbi próbavizsgák</h2></div>
         <ul class="history panel">
-          ${data.vizsgak.map((v) => `<li><span>${esc(v.d)} · ${v.n} kérdés</span><span><strong>${v.pct}%</strong> – ${esc(v.jegy)}</span></li>`).join('')}
+          ${data.vizsgak.map((v) => `<li><span>${esc(v.d)} · ${v.n} kérdés</span><span><strong>${v.pct}%</strong> – ${esc(gradesShort(v.pct))}</span></li>`).join('')}
         </ul>
       </section>` : ''}`);
 }
@@ -252,7 +259,7 @@ function viewQuizSetup(mode) {
       <div class="page-head">
         <h1 class="page-title">${isExam ? 'Próbavizsga' : 'Kvíz'}</h1>
         <p class="page-sub">${isExam
-          ? 'Időre megy, kérdésenként egy perc. Közben nincs visszajelzés, a végén kapsz százalékot, jegyet és átnézheted a hibáidat.'
+          ? 'Időre megy, kérdésenként egy perc. Közben nincs visszajelzés, a végén kapsz százalékot, jegyet rendes és szigorú határok szerint is, és átnézheted a hibáidat.'
           : 'Minden válasz után rögtön látod a megoldást és a magyarázatot.'}</p>
       </div>
       <div class="panel setup">
@@ -425,7 +432,7 @@ function startRun(mode, items) {
     if (isExam) {
       run.items.forEach((it, i) => addStat(it.tema, isOk(i)));
       const data = store.get(STAT_KEY, {});
-      data.vizsgak = [{ d: dayKey(), pct, jegy: grade(pct), n: total }, ...(data.vizsgak || [])].slice(0, 10);
+      data.vizsgak = [{ d: dayKey(), pct, n: total }, ...(data.vizsgak || [])].slice(0, 10);
       store.set(STAT_KEY, data);
     }
 
@@ -435,8 +442,12 @@ function startRun(mode, items) {
         <div class="panel">
           <p class="eyebrow">${isExam ? 'Próbavizsga eredménye' : 'Kvíz eredménye'}</p>
           <p class="result-score">${pct}%</p>
-          ${isExam ? `<p class="result-grade">${esc(grade(pct))}</p>` : ''}
-          <p class="result-sub">${good} jó válasz ${total} kérdésből.${isExam ? ' A jegy tájékoztató: 40% / 55% / 70% / 85% a határ.' : ''}</p>
+          <p class="result-sub">${good} jó válasz ${total} kérdésből.</p>
+          ${isExam ? `<dl class="grades">${JEGYHATAROK.map((j) => `
+            <div>
+              <dt>${j.nev} <span class="faint">(${j.hatarok.join(' / ')}%)</span></dt>
+              <dd>${esc(grade(pct, j.hatarok))}</dd>
+            </div>`).join('')}</dl>` : ''}
           <div class="btn-row" style="margin-top:16px">
             <a class="btn btn-primary" href="#${mode}" id="again">Új ${isExam ? 'próbavizsga' : 'kvíz'}</a>
             <a class="btn" href="#">Vissza a gyakorlóhoz</a>
