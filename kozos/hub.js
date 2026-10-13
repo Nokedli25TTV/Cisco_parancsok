@@ -27,7 +27,8 @@ const Hub = (() => {
    *  priv: csak bekapcsolt adatbázissal látszik. */
   const MENU = [
     { id: 'kezdolap',   label: 'Kezdőlap',   href: `${root}/` },
-    { id: 'parancstar', label: 'Parancstár', href: `${root}/parancstar/` },
+    { id: 'parancstar', label: 'Cisco',      href: `${root}/parancstar/` },
+    { id: 'linux',      label: 'Linux',      href: `${root}/linux/` },
     { id: 'jegyzetek',  label: 'Jegyzetek',  href: `${root}/jegyzetek/` },
     { id: 'gyakorlo',   label: 'Gyakorló',   href: `${root}/gyakorlo/` },
     { id: 'naptar',     label: 'Naptár',     href: `${root}/naptar/`,  priv: true },
@@ -128,6 +129,20 @@ const Hub = (() => {
   function dayKey(d = new Date()) {
     const p = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  /* Letöltött másolat, fájlból megnyitva (net és szerver nélkül): a mappára mutató
+   * link ott mappalistát adna, ezért ilyenkor az index.html-t nyitjuk meg. */
+  if (location.protocol === 'file:') {
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href]');
+      if (!a) return;
+      const url = new URL(a.href);
+      if (url.protocol !== 'file:' || !url.pathname.endsWith('/')) return;
+      e.preventDefault();
+      url.pathname += 'index.html';
+      location.href = url.href;
+    });
   }
 
   renderHeader();

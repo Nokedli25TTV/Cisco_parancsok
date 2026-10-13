@@ -1017,6 +1017,107 @@ mark {
   .tool-cmd:hover { color: var(--fg); border-color: var(--border-strong); }
 }
 
+/* ---------- Jogosultság-jelzés a kártya fejében (Linux) ---------- */
+.card-jog {
+  display: inline-flex;
+  align-items: flex-start;
+  align-self: flex-start;
+  gap: 7px;
+  margin: 4px 0 0;
+  padding: 4px 10px 4px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--jog) 13%, transparent);
+  color: var(--fg-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.card-jog strong { color: var(--jog); font-weight: 600; }
+.card-jog svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  fill: none;
+  stroke: var(--jog);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.jog-root   { --jog: var(--t-bad); }
+.jog-user   { --jog: var(--t-ok); }
+.jog-vegyes { --jog: var(--t-str); }
+
+/* ---------- Hivatkozás másik kártyára, sor másolása kattintásra ---------- */
+.xref {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklch, var(--accent) 45%, transparent);
+  text-underline-offset: 2px;
+}
+.card.is-jump { animation: card-target 2.2s var(--ease-out); }
+.ln[data-c] { cursor: copy; }
+
+/* ---------- chmod-kalkulátor ---------- */
+.perm-grid { display: grid; gap: 8px; max-width: 400px; }
+.perm-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 2.2ch;
+  align-items: center;
+  gap: 12px;
+}
+.perm-who { display: grid; line-height: 1.3; }
+.perm-who strong { font-size: 14.5px; font-weight: 600; }
+.perm-who span { color: var(--fg-faint); font-size: 12.5px; }
+.perm-who code, .tool-out code {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--card);
+  font: 500 12px var(--font-mono);
+}
+.perm-bits { display: flex; gap: 6px; }
+.perm-bit {
+  width: 44px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--fg-faint);
+  font: 600 16px var(--font-mono);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease, transform 100ms var(--ease-out);
+}
+.perm-bit:active { transform: scale(0.95); }
+.perm-bit[aria-pressed="true"] {
+  border-color: color-mix(in oklch, var(--accent) 60%, transparent);
+  background: color-mix(in oklch, var(--accent) 20%, transparent);
+  color: var(--fg);
+}
+.perm-digit {
+  color: var(--t-num);
+  font: 600 20px var(--font-mono);
+  text-align: center;
+}
+.perm-octal { letter-spacing: 0.2em; }
+.perm-words { padding: 5px 0; font-size: 14px; }
+
+/* ---------- Saját adatok űrlap ---------- */
+.vars-form { display: flex; flex-direction: column; gap: 16px; }
+.vars-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.vars-grid .tool-field { max-width: none; }
+.vars-save {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+.tool-preset[data-reset] { font-family: var(--font-ui); }
+.tool-preset.vars-save:hover { color: var(--on-accent); border-color: transparent; }
+
 /* ---------- 7. Üres állapot, lábléc, toast ---------- */
 .empty {
   max-width: 480px;
@@ -1130,6 +1231,8 @@ mark {
   .cat-title { font-size: 21px; }
   .card { padding: 16px 15px; gap: 12px; }
   .card-title { font-size: 17px; }
+  .tbl-wide { min-width: 540px; }               /* 3+ oszlop: inkább görgethető legyen, mint összenyomott */
+  .tbl th, .tbl td { padding: 8px 12px; }
   .code-body { font-size: 13px; }
   .code-pre { padding: 11px 12px 13px; }
   .ln { padding-right: 12px; padding-left: calc(12px + (var(--i, 0) + 2) * 1ch); }

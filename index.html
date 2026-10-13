@@ -22,7 +22,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
 
   <link rel="stylesheet" href="kozos/tema.css">
   <link rel="stylesheet" href="kozos/hub.css">
@@ -95,11 +95,17 @@
       <div class="grid">
         <a class="tile" href="parancstar/" style="--tone: var(--cat-switching)">
           <span class="tile-icon" aria-hidden="true"><svg class="hub-icon" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M7 10l3 2.5L7 15M12.5 15H17"/></svg></span>
-          <span class="tile-title">Parancstár</span>
+          <span class="tile-title">Cisco parancstár</span>
           <span class="tile-desc">Kereshető Cisco és Packet Tracer parancsok magyarázattal, másolható formában.</span>
           <span class="tile-meta">switching · routing · szolgáltatások · IoT</span>
         </a>
-        <a class="tile" href="jegyzetek/" style="--tone: var(--cat-services)">
+        <a class="tile" href="linux/" style="--tone: var(--cat-services)">
+          <span class="tile-icon" aria-hidden="true"><svg class="hub-icon" viewBox="0 0 24 24"><path d="M5 7.5l4 4-4 4M11.5 16.5H19"/></svg></span>
+          <span class="tile-title">Linux parancstár</span>
+          <span class="tile-desc">Debian szerver parancsai magyarázattal: melyik mire való, és kell-e hozzá root. Jogosultság-kalkulátorral.</span>
+          <span class="tile-meta">hálózat · apt · ssh · grep · chmod · web</span>
+        </a>
+        <a class="tile" href="jegyzetek/" style="--tone: var(--cat-wan)">
           <span class="tile-icon" aria-hidden="true"><svg class="hub-icon" viewBox="0 0 24 24"><path d="M6 3.5h9l4 4V20.5H6z"/><path d="M14.5 3.5V8H19M9 12h7M9 15.5h7"/></svg></span>
           <span class="tile-title">Jegyzetek</span>
           <span class="tile-desc">Tantárgyankénti vázlatok az órai anyagból: ami a dogához kell, tömören.</span>
@@ -113,6 +119,7 @@
         </a>
       </div>
       <p id="privatNote" class="section-note" style="margin-top:14px"></p>
+      <p class="section-note" style="margin-top:6px">Net nélkül is kell? <a href="https://github.com/Nokedli25TTV/Cisco_parancsok/archive/refs/heads/main.zip">Töltsd le az egész oldalt ZIP-ben</a>, csomagold ki, és nyisd meg benne az <code>index.html</code> fájlt – a parancstárak, a jegyzetek és a gyakorló szerver nélkül is működnek.</p>
     </section>
   </main>
 

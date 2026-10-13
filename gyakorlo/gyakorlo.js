@@ -785,17 +785,33 @@ function allCards() {
       });
     });
   }
+  // Linux parancstár: a magyarázott parancssorok; a {{KITÖLTHETŐ}} részek az alapértékkel
+  if (typeof LINUX_COMMANDS !== 'undefined') {
+    const defs = Object.fromEntries((typeof VALTOZOK !== 'undefined' ? VALTOZOK : []).map((v) => [v.key, v.def]));
+    const fill = (s) => s.replace(/\{\{([A-Z]+)\}\}/g, (m, k) => defs[k] || m);
+    LINUX_COMMANDS.forEach((item) => {
+      (item.blocks || []).forEach((b) => {
+        if (b.lang !== 'bash' && b.lang !== 'sql') return;
+        b.code.split('\n').forEach((raw) => {
+          const m = raw.replace(/\s+$/, '').match(/^(.*?\S)\s+\/\/\s+(.*)$/);
+          if (!m) return;
+          const cmd = fill(m[1].trim());
+          cards.push({ id: `lx|${item.id}|${cmd}`, deck: `lx-${item.category}`, front: fill(m[2]), back: cmd, ctx: fill(item.title), mono: true });
+        });
+      });
+    });
+  }
   cardCache = cards;
   return cards;
 }
 
 function allDecks() {
   const decks = PAKLIK.slice();
-  if (typeof CATEGORIES !== 'undefined') {
-    CATEGORIES.forEach((c) => {
-      if (allCards().some((k) => k.deck === `pt-${c.id}`)) decks.push({ id: `pt-${c.id}`, nev: `Parancsok: ${c.label}` });
-    });
-  }
+  const add = (cats, prefix, label) => cats.forEach((c) => {
+    if (allCards().some((k) => k.deck === `${prefix}-${c.id}`)) decks.push({ id: `${prefix}-${c.id}`, nev: `${label}: ${c.label}` });
+  });
+  if (typeof LINUX_CATEGORIES !== 'undefined') add(LINUX_CATEGORIES, 'lx', 'Linux');
+  if (typeof CATEGORIES !== 'undefined') add(CATEGORIES, 'pt', 'Cisco');
   return decks;
 }
 

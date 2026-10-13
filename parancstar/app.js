@@ -1,8 +1,10 @@
 'use strict';
 
 /* =========================================================================
- * Packet Tracer parancstár – app.js
- * A tartalom a data.js-ben van (COMMANDS, CATEGORIES), ide nem kell nyúlni.
+ * Parancstár-motor – app.js
+ * Két oldal használja ugyanezt a fájlt: parancstar/ (Cisco) és linux/.
+ * A tartalom az adott oldal data.js-ében van (COMMANDS, CATEGORIES), ide
+ * nem kell nyúlni új parancs felvételéhez.
  *
  *  1. SEGÉDFÜGGVÉNYEK, IKONOK
  *  2. SZINTAXIS KIEMELÉS
@@ -28,9 +30,21 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ESC_MAP[c]);
 /** Kis- és ékezetfüggetlen alak a kereséshez ("Jelszó" → "jelszo") */
 const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+/** **szöveg** → félkövér */
+const boldText = (text, tokens) => text.split(/\*\*([^*]+)\*\*/)
+  .map((part, i) => (i % 2 ? `<strong>${markText(part, tokens)}</strong>` : markText(part, tokens)))
+  .join('');
+
+/** [szöveg](#kartya-id) → ugrás egy másik kártyára (a keresés kiemelése a szövegen belül marad) */
+const XREF_RE = /(\[[^\]]+\]\(#[a-z0-9-]+\))/;
+const linkText = (text, tokens) => text.split(XREF_RE).map((seg) => {
+  const m = seg.match(/^\[([^\]]+)\]\(#([a-z0-9-]+)\)$/);
+  return m ? `<a class="xref" href="#cmd-${m[2]}">${markText(m[1], tokens)}</a>` : boldText(seg, tokens);
+}).join('');
+
 /** Tipp szöveg: `parancs` → <code>parancs</code>, a keresett szavak kiemelésével */
 const richText = (s, tokens = []) => String(s).split(/`([^`]+)`/)
-  .map((part, i) => (i % 2 ? `<code>${markText(part, tokens)}</code>` : markText(part, tokens)))
+  .map((part, i) => (i % 2 ? `<code>${markText(part, tokens)}</code>` : linkText(part, tokens)))
   .join('');
 
 const catById = (id) => CATEGORIES.find((c) => c.id === id);
@@ -62,22 +76,50 @@ const CAT_ICONS = {
   segedlet: '<rect x="5" y="2.5" width="14" height="19" rx="2.5"/><path d="M8.5 6.5h7M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h3.5"/>'
 };
 
+/** Milyen jogosultság kell a kártya parancsaihoz (data.js: jog: 'root' | 'user' | 'vegyes',
+ *  mellé opcionális jogNote szöveg). A Cisco-kártyákon nincs ilyen. */
+const JOGOK = {
+  root: {
+    label: 'root jog kell',
+    icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l7 2.8v5.3c0 4.6-3 8.1-7 9.5-4-1.4-7-4.9-7-9.5V6z"/><path d="M12 9v4M12 16h.01"/></svg>'
+  },
+  user: {
+    label: 'bárki futtathatja',
+    icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.6-3.6 3.3-5.5 7-5.5s6.4 1.9 7 5.5"/></svg>'
+  },
+  vegyes: {
+    label: 'részben root kell',
+    icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.5-3 2.7-4.5 5.5-4.5 1.2 0 2.3.3 3.2.8M17 12.5l4 1.6v2.6c0 2.1-1.5 3.8-4 4.5-2.5-.7-4-2.4-4-4.5v-2.6z"/></svg>'
+  }
+};
+
 /** Kódblokk típusikonok: >_ parancssor, nyíl = kattintás a grafikus felületen, </> programkód */
 const BLOCK_ICONS = {
   ios: '<path d="M5 7.5l4 4-4 4M11.5 16.5H19"/>',
   pc: '<path d="M5 7.5l4 4-4 4M11.5 16.5H19"/>',
   gui: '<path d="M5.5 4.5l13 5.6-5.7 1.9-2.3 5.6z"/>',
   python: '<path d="M8.5 7L3.5 12l5 5M15.5 7l5 5-5 5"/>',
+  bash: '<path d="M5 7.5l4 4-4 4M11.5 16.5H19"/>',
+  conf: '<path d="M6 3.5h9l4 4V20.5H6z"/><path d="M14.5 3.5V8H19M9 12.5h7M9 16h5"/>',
+  sql: '<ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v11c0 1.7 3.1 3 7 3s7-1.3 7-3v-11M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>',
   table: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9.5 9.5v10"/>',
   steps: '<path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/>',
   text: '<path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/>'
 };
 
 /** Ezekben a blokkokban van soronkénti parancs + magyarázat (és másolás gomb) */
-const CODE_LANGS = new Set(['ios', 'pc', 'gui']);
+const CODE_LANGS = new Set(['ios', 'pc', 'gui', 'bash', 'conf', 'sql']);
+
+/** Ahol a blokk címkéje egy prompt (zöld, fix szélességű betűvel) */
+const PROMPT_LANGS = new Set(['ios', 'bash']);
+
+/** Ezekben a blokkokban egy sorra kattintva csak az az egy sor másolódik */
+const LINE_COPY_LANGS = new Set(['ios', 'pc', 'bash', 'conf', 'sql']);
 
 const svgIcon = (paths, cls) => `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
-const catIcon = (id, cls) => svgIcon(CAT_ICONS[id] || CAT_ICONS.all, cls);
+
+/** Kategória ikonja: beépített (CAT_ICONS), vagy a data.js-ben megadott `icon` */
+const catIcon = (id, cls) => svgIcon(CAT_ICONS[id] || (catById(id) || {}).icon || CAT_ICONS.all, cls);
 
 /** Kategória színe; ha a CSS-ben nincs --cat-<id>, az akcentszín */
 const catColor = (id) => `var(--cat-${id}, var(--accent))`;
@@ -93,7 +135,7 @@ function labelHtml(label, lang) {
   const main = m ? m[1] : text;
   const path = main.split(/\s+›\s+/).map(esc).join(' <span class="lbl-sep" aria-hidden="true">›</span> ');
   const sub = m ? `<span class="lbl-sub">${esc(m[2])}</span>` : '';
-  return `<span class="${lang === 'ios' ? 'lbl-prompt' : 'lbl-path'}">${path}</span>${sub}`;
+  return `<span class="${PROMPT_LANGS.has(lang) ? 'lbl-prompt' : 'lbl-path'}">${path}</span>${sub}`;
 }
 
 /* =========================================================================
@@ -236,7 +278,80 @@ function hlPy(line) {
   return out + esc(line.slice(last));
 }
 
-const HIGHLIGHTERS = { ios: hlIos, pc: hlPc, gui: hlGui, python: hlPy };
+/** Linux parancssor: parancs, kapcsolók, útvonalak, idézőjeles szöveg, csövek és átirányítás.
+ *  Egy „szó” tartalmazhat idézőjeles részt is (pl. -F'Invalid user '). */
+const BASH_RE = /(\s+)|(<<|>>|2>&1|2>|\|\||&&|[|><;])|((?:[^\s|><;"']|"(?:[^"\\]|\\.)*"|'[^']*')+)/g;
+const IP_ANY_RE = /^\d{1,3}(\.\d{1,3}){3}(\/\d{1,2})?(:\d+)?$/;
+const BASH_PATH_RE = /^(~|\.{1,2}\/|\/)|\/|^https?:|\.(log|sh|conf|list|php|sql|7z|zip|deb|txt|gz|tar)$/i;
+
+function hlBash(line) {
+  if (/^\s*#/.test(line)) return tok('comment', line);
+
+  let out = '';
+  let cmdNext = true;                 // a sor elején és cső / && / ; után parancs jön
+  for (const m of line.matchAll(BASH_RE)) {
+    const [text, ws, op, word] = m;
+    if (ws) { out += ws; continue; }
+    if (op) {
+      out += tok('sep', text);
+      if (/^(\||\|\||&&|;)$/.test(op)) cmdNext = true;
+      continue;
+    }
+
+    let cls = '';
+    if (cmdNext) {
+      if (word === 'sudo') cls = 'neg';                       // utána jön a tényleges parancs
+      else { cls = /^[A-Za-z_]+=/.test(word) ? 'kw' : 'cmd'; cmdNext = false; }
+    } else if (/^["']/.test(word)) cls = 'str';
+    else if (/^-/.test(word)) cls = 'kw';
+    else if (/^\$/.test(word)) cls = 'num';                   // változó
+    else if (IP_ANY_RE.test(word)) cls = 'ip';
+    else if (/^\d+$/.test(word) || /^[ugoa]*[+=-][rwxXst]+$/.test(word)) cls = 'num';
+    else if (BASH_PATH_RE.test(word)) cls = 'path';
+
+    out += cls ? tok(cls, text) : esc(text);
+  }
+  return out;
+}
+
+/** Konfigurációs fájl tartalma: kulcsszó + értékek, # megjegyzés */
+function hlConf(line) {
+  if (/^\s*[#;]/.test(line)) return tok('comment', line);
+
+  let out = '';
+  let idx = 0;
+  for (const part of line.split(/(\s+)/)) {
+    if (!part) continue;
+    if (/^\s+$/.test(part)) { out += part; continue; }
+
+    let cls = 'str';
+    if (idx === 0) cls = 'cmd';
+    else if (IP_ANY_RE.test(part)) cls = 'ip';
+    else if (/^\d+$/.test(part)) cls = 'num';
+    else if (BASH_PATH_RE.test(part)) cls = 'path';
+
+    out += tok(cls, part);
+    idx++;
+  }
+  return out;
+}
+
+/** SQL utasítás: kulcsszavak és idézőjeles értékek */
+const SQL_RE = /(--.*$)|('(?:[^'\\]|\\.)*')|\b(CREATE|DATABASE|DATABASES|USER|IDENTIFIED|BY|GRANT|ALL|PRIVILEGES|ON|TO|FLUSH|EXIT|IF|NOT|EXISTS|SHOW|TABLES|USE|SELECT|FROM|WHERE|CHARACTER|SET|COLLATE|DROP|INSERT|INTO|VALUES|UPDATE|DELETE|SOURCE)\b/gi;
+
+function hlSql(line) {
+  let out = '';
+  let last = 0;
+  for (const m of line.matchAll(SQL_RE)) {
+    const [text, comment, str] = m;
+    out += esc(line.slice(last, m.index));
+    out += tok(comment ? 'comment' : str ? 'str' : 'kw', text);
+    last = m.index + text.length;
+  }
+  return out + esc(line.slice(last));
+}
+
+const HIGHLIGHTERS = { ios: hlIos, pc: hlPc, gui: hlGui, python: hlPy, bash: hlBash, conf: hlConf, sql: hlSql };
 
 /* =========================================================================
  * 3. ADATOK ELŐKÉSZÍTÉSE
@@ -250,9 +365,48 @@ function splitNote(raw, lang) {
   return m ? { cmd: m[1], note: m[2] } : { cmd: line, note: '' };
 }
 
+/** A data.js-ben `hue` értékkel megadott kategóriák színe (sötét és világos témára).
+ *  A Cisco kategóriák színe a tema.css-ben van, azokhoz nem kell hue. */
+function applyCategoryColors() {
+  const withHue = CATEGORIES.filter((c) => typeof c.hue === 'number');
+  if (!withHue.length) return;
+  const vars = (l, c) => withHue.map((cat) => `--cat-${cat.id}: oklch(${l} ${c} ${cat.hue});`).join(' ');
+  const style = document.createElement('style');
+  style.textContent = `:root { ${vars(0.78, 0.13)} } :root[data-theme="light"] { ${vars(0.52, 0.15)} }`;
+  document.head.appendChild(style);
+}
+
+/* Kitölthető értékek: a data.js VALTOZOK tömbje ({ key, label, def }), a szövegekben
+ * {{KULCS}} alakban. Az olvasó a tool: 'valtozok' kártyán írja be a sajátját; a
+ * megjelenítő úgyis mindent escape-el, így a beírt érték nem tud HTML-t becsempészni. */
+const VARS = typeof VALTOZOK !== 'undefined' ? VALTOZOK : [];
+const VARS_KEY = 'parancstar-valtozok';
+
+function savedVars() {
+  try { return JSON.parse(storage.get(VARS_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+
+function varValues() {
+  const saved = savedVars();
+  return Object.fromEntries(VARS.map((v) => [v.key, String(saved[v.key] || '').trim() || v.def]));
+}
+
+function fillItem(item, vals) {
+  const fill = (s) => (typeof s === 'string' ? s.replace(/\{\{([A-Z]+)\}\}/g, (m, k) => (k in vals ? vals[k] : m)) : s);
+  ['title', 'desc', 'tip', 'jogNote'].forEach((key) => { item[key] = fill(item[key]); });
+  (item.blocks || []).forEach((b) => {
+    b.label = fill(b.label);
+    b.code = fill(b.code);
+    if (b.head) b.head = b.head.map(fill);
+    if (b.rows) b.rows = b.rows.map((r) => r.map(fill));
+  });
+}
+
 function prepareData() {
   const known = new Set(CATEGORIES.map((c) => c.id));
+  const vals = VARS.length ? varValues() : null;
   COMMANDS.forEach((item) => {
+    if (vals) fillItem(item, vals);
     if (!known.has(item.category)) {
       console.warn(`Ismeretlen kategória: "${item.category}" (${item.id})`);
     }
@@ -307,7 +461,9 @@ function renderLine(l, lang) {
   const body = l.cmd.slice(indent);
   const code = body ? HIGHLIGHTERS[lang](body) : '&#8203;';
   const note = l.note ? `<span class="ln-note">${esc(l.note)}</span>` : '';
-  return `<div class="ln${l.note ? ' has-note' : ''}" style="--i:${indent}"><span class="ln-cmd">${code}</span>${note}</div>`;
+  // Megjegyzéssor és üres sor nem másolható külön
+  const copy = body && LINE_COPY_LANGS.has(lang) && !/^[#!]/.test(body) ? ` data-c="${esc(body)}"` : '';
+  return `<div class="ln${l.note ? ' has-note' : ''}" style="--i:${indent}"${copy}><span class="ln-cmd">${code}</span>${note}</div>`;
 }
 
 /** Táblázat: a csak számokat tartalmazó oszlopok fix szélességű betűt kapnak */
@@ -320,7 +476,7 @@ function renderTable(b) {
   const body = b.rows
     .map((r) => `<tr>${r.map((c, i) => `<td${cls(i)}>${richText(c)}</td>`).join('')}</tr>`)
     .join('');
-  return `<div class="code-body table-wrap"><table class="tbl"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+  return `<div class="code-body table-wrap"><table class="tbl${b.head.length > 2 ? ' tbl-wide' : ''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 /** Számozott lépéssor ('steps') vagy felsorolás ('text'); a "# " kezdetű sor alcím */
@@ -381,16 +537,18 @@ function buildCard(item) {
       </div>`;
   }).join('');
 
+  const jog = JOGOK[item.jog];
   card.innerHTML = `
     <header class="card-head">
       <h3 class="card-title"></h3>
       <p class="card-desc"></p>
+      ${jog ? `<p class="card-jog jog-${esc(item.jog)}">${jog.icon}<span><strong>${jog.label}</strong>${item.jogNote ? ` – ${esc(item.jogNote)}` : ''}</span></p>` : ''}
     </header>
     ${item.tool ? '<div class="tool"></div>' : ''}
     ${blocksHtml}
     ${item.tip ? `<p class="card-tip">${ICONS.bulb}<span>${richText(item.tip)}</span></p>` : ''}`;
 
-  if (item.tool === 'subnet') buildSubnetTool(card.querySelector('.tool'));
+  if (TOOLS[item.tool]) TOOLS[item.tool](card.querySelector('.tool'));
 
   const titleEl = card.querySelector('.card-title');
   const descEl = card.querySelector('.card-desc');
@@ -410,6 +568,7 @@ function buildCard(item) {
   const cat = catById(item.category);
   const haystack = norm([
     item.title, item.desc, item.tip || '', cat ? cat.label : '',
+    jog ? `${jog.label} ${item.jogNote || ''}` : '',
     ...item.blocks.flatMap((b) => [b.label || '', b.text || ''])
   ].join(' \n '));
 
@@ -617,6 +776,171 @@ function buildSubnetTool(host) {
   prefixEl.addEventListener('input', update);
   update();
 }
+
+/* =========================================================================
+ * 4/C. CHMOD-KALKULÁTOR (tool: 'chmod')
+ * ========================================================================= */
+const PERM_WHO = [
+  ['u', 'Tulajdonos', 'user'],
+  ['g', 'Csoport', 'group'],
+  ['o', 'Többiek', 'other']
+];
+const PERM_BITS = [['r', 4, 'olvasás'], ['w', 2, 'írás'], ['x', 1, 'futtatás']];
+const PERM_PRESETS = ['644', '755', '700', '600', '775', '777'];
+
+function buildChmodTool(host) {
+  let digits = [7, 5, 5];
+  let isDir = false;
+
+  host.innerHTML = `
+    <div class="perm-grid" role="group" aria-label="Jogosultságok">
+      ${PERM_WHO.map(([key, nev, en], row) => `
+        <div class="perm-row">
+          <span class="perm-who"><strong>${nev}</strong><span>${en} · <code>${key}</code></span></span>
+          <span class="perm-bits">
+            ${PERM_BITS.map(([bit, val, mit]) => `<button class="perm-bit" type="button" data-row="${row}" data-val="${val}" aria-pressed="false" title="${mit} (${val})">${bit}</button>`).join('')}
+          </span>
+          <span class="perm-digit" data-digit="${row}"></span>
+        </div>`).join('')}
+    </div>
+    <div class="tool-inputs">
+      <label class="tool-field tool-field-prefix">
+        <span>Számmal</span>
+        <input class="perm-octal" type="text" inputmode="numeric" maxlength="3" spellcheck="false" autocomplete="off">
+      </label>
+      <div class="tool-field">
+        <span>Mire állítod?</span>
+        <div class="tool-presets">
+          <button class="tool-preset" type="button" data-kind="file">fájl</button>
+          <button class="tool-preset" type="button" data-kind="dir">mappa</button>
+        </div>
+      </div>
+    </div>
+    <div class="tool-presets">${PERM_PRESETS.map((p) => `<button class="tool-preset" type="button" data-preset="${p}">${p}</button>`).join('')}</div>
+    <dl class="tool-out"></dl>
+    <div class="tool-cmds"></div>`;
+
+  const octalEl = host.querySelector('.perm-octal');
+  const outEl = host.querySelector('.tool-out');
+  const cmdsEl = host.querySelector('.tool-cmds');
+
+  const symbolic = (d) => PERM_BITS.map(([bit, val]) => (d & val ? bit : '-')).join('');
+  const words = (d) => {
+    // mappánál az x belépést, az r listázást, a w létrehozást és törlést jelent
+    const names = isDir ? ['listázhatja', 'létrehozhat és törölhet benne', 'beléphet'] : ['olvashatja', 'írhatja', 'futtathatja'];
+    const list = PERM_BITS.map(([, val], i) => (d & val ? names[i] : '')).filter(Boolean);
+    return list.length ? list.join(', ') : 'semmit nem tehet vele';
+  };
+  const copyRow = (text) =>
+    `<button class="tool-cmd" type="button" data-copy="${esc(text)}"><code>${esc(text)}</code>${ICONS.copy}</button>`;
+
+  function update(fromInput) {
+    const octal = digits.join('');
+    if (!fromInput) octalEl.value = octal;
+
+    host.querySelectorAll('.perm-bit').forEach((b) => {
+      b.setAttribute('aria-pressed', String(Boolean(digits[Number(b.dataset.row)] & Number(b.dataset.val))));
+    });
+    host.querySelectorAll('.perm-digit').forEach((el) => { el.textContent = digits[Number(el.dataset.digit)]; });
+    host.querySelectorAll('[data-preset]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.preset === octal)));
+    host.querySelectorAll('[data-kind]').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.kind === 'dir') === isDir)));
+
+    const ls = (isDir ? 'd' : '-') + digits.map(symbolic).join('');
+    const target = isDir ? 'mappa' : 'fajl';
+    outEl.innerHTML = `
+      <dt>Az <code>ls -l</code> így mutatja</dt>
+      <dd><button class="tool-val" type="button" data-copy="${ls}">${ls}</button></dd>
+      ${PERM_WHO.map(([, nev], i) => `<dt>${nev}</dt><dd class="perm-words">${words(digits[i])}</dd>`).join('')}`;
+
+    cmdsEl.innerHTML =
+      copyRow(`chmod ${octal} ${target}`) +
+      copyRow(`chmod u=${symbolic(digits[0]).replace(/-/g, '')},g=${symbolic(digits[1]).replace(/-/g, '')},o=${symbolic(digits[2]).replace(/-/g, '')} ${target}`) +
+      (isDir ? copyRow(`chmod -R ${octal} ${target}`) : '');
+  }
+
+  host.addEventListener('click', async (e) => {
+    const bit = e.target.closest('.perm-bit');
+    if (bit) {
+      digits[Number(bit.dataset.row)] ^= Number(bit.dataset.val);
+      update(false);
+      return;
+    }
+    const preset = e.target.closest('[data-preset]');
+    if (preset) {
+      digits = preset.dataset.preset.split('').map(Number);
+      update(false);
+      return;
+    }
+    const kind = e.target.closest('[data-kind]');
+    if (kind) {
+      isDir = kind.dataset.kind === 'dir';
+      update(false);
+      return;
+    }
+    const copyEl = e.target.closest('[data-copy]');
+    if (!copyEl) return;
+    const ok = await copyText(copyEl.dataset.copy);
+    showToast(ok ? `Másolva: ${copyEl.dataset.copy}` : 'A másolás nem sikerült');
+  });
+
+  octalEl.addEventListener('input', () => {
+    if (!/^[0-7]{3}$/.test(octalEl.value)) return;      // csak teljes, érvényes számra frissít
+    digits = octalEl.value.split('').map(Number);
+    update(true);
+  });
+  octalEl.addEventListener('blur', () => update(false));
+
+  update(false);
+}
+
+/* =========================================================================
+ * 4/D. SAJÁT ADATOK (tool: 'valtozok')
+ * A beírt értékek a böngészőben tárolódnak; mentés után az oldal újratölt,
+ * és minden kártya már a saját adatokkal épül fel.
+ * ========================================================================= */
+function buildVarsTool(host) {
+  const vals = varValues();
+  host.innerHTML = `
+    <form class="vars-form" autocomplete="off">
+      <div class="vars-grid">
+        ${VARS.map((v) => `
+          <label class="tool-field">
+            <span>${esc(v.label)}</span>
+            <input type="text" name="${esc(v.key)}" value="${esc(vals[v.key])}" placeholder="${esc(v.def)}" spellcheck="false" autocapitalize="off">
+          </label>`).join('')}
+      </div>
+      <div class="tool-presets">
+        <button class="tool-preset vars-save" type="submit">Mentés és alkalmazás</button>
+        <button class="tool-preset" type="button" data-reset>Alapértékek vissza</button>
+      </div>
+    </form>`;
+
+  const reload = () => {
+    // vissza ugyanerre a kártyára
+    const card = host.closest('.card');
+    if (card) history.replaceState(null, '', `#${card.id}`);
+    location.reload();
+  };
+
+  host.querySelector('form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const next = {};
+    VARS.forEach((v) => {
+      const value = e.target.elements[v.key].value.trim().replace(/\s+/g, '');
+      if (value && value !== v.def) next[v.key] = value;
+    });
+    storage.set(VARS_KEY, JSON.stringify(next));
+    reload();
+  });
+
+  host.querySelector('[data-reset]').addEventListener('click', () => {
+    storage.set(VARS_KEY, '{}');
+    reload();
+  });
+}
+
+/** Beépített eszközök: data.js-ben tool: 'subnet' | 'chmod' | 'valtozok' */
+const TOOLS = { subnet: buildSubnetTool, chmod: buildChmodTool, valtozok: buildVarsTool };
 
 /* =========================================================================
  * 5. KERESÉS + SZŰRÉS
@@ -931,12 +1255,37 @@ function bindEvents() {
   window.addEventListener('resize', scheduleSpy);
   window.addEventListener('scrollend', () => { spyLockUntil = 0; });
 
-  els.results.addEventListener('click', (e) => {
+  els.results.addEventListener('click', async (e) => {
     const btn = e.target.closest('.copy-btn');
-    if (!btn) return;
-    const card = btn.closest('.card');
-    const ref = cardRefs.find((r) => r.el === card);
-    if (ref) copyBlock(ref.item, Number(btn.dataset.block), btn, false);
+    if (btn) {
+      const card = btn.closest('.card');
+      const ref = cardRefs.find((r) => r.el === card);
+      if (ref) copyBlock(ref.item, Number(btn.dataset.block), btn, false);
+      return;
+    }
+
+    // Hivatkozás másik kártyára: a szűrők ne takarják el a célt
+    const xref = e.target.closest('.xref');
+    if (xref) {
+      const target = document.getElementById(xref.getAttribute('href').slice(1));
+      if (!target) return;
+      e.preventDefault();
+      if (state.query) setQuery('');
+      if (state.category !== 'all') { state.category = 'all'; applyFilters(); }
+      history.pushState(null, '', xref.getAttribute('href'));
+      target.scrollIntoView({ block: 'start', behavior: 'instant' });
+      target.classList.remove('is-jump');
+      void target.offsetWidth;                         // az animáció újraindításához
+      target.classList.add('is-jump');
+      return;
+    }
+
+    // Egy sorra kattintva csak az a sor másolódik (kijelölés közben nem)
+    const line = e.target.closest('.ln[data-c]');
+    if (line && !String(window.getSelection())) {
+      const ok = await copyText(line.dataset.c);
+      showToast(ok ? `Másolva: ${line.dataset.c}` : 'A másolás nem sikerült');
+    }
   });
 
   els.emptyReset.addEventListener('click', () => {
@@ -990,6 +1339,7 @@ function init() {
   applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark', false);
   applyNotes(storage.get(NOTES_KEY) !== 'off', false);
 
+  applyCategoryColors();
   prepareData();
   renderFilters();
   renderCards();

@@ -20,10 +20,10 @@
     } catch (e) { /* tárhely nem elérhető – marad a sötét téma */ }
   </script>
 
-  <!-- Betűtípusok: offline módban a rendszer-betűkészletre vált vissza -->
+  <!-- Betűtípusok: nem blokkolják a kirajzolást; net nélkül a rendszer betűkészlete marad -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
 
   <link rel="stylesheet" href="../kozos/tema.css">
   <link rel="stylesheet" href="style.css">
@@ -49,7 +49,7 @@
       </div>
 
       <div class="brand-actions">
-        <a class="icon-btn" href="../" aria-label="Vissza az osztályoldal kezdőlapjára" title="Osztályoldal">
+        <a class="icon-btn" href="../index.html" aria-label="Vissza az osztályoldal kezdőlapjára" title="Osztályoldal">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5M6.5 10v9.5h11V10"/></svg>
         </a>
         <span id="resultCount" class="result-count" aria-live="polite"></span>
@@ -99,6 +99,7 @@
         <span><kbd>Enter</kbd> első találat másolása</span>
         <span><kbd>Esc</kbd> keresés törlése</span>
         <span><kbd>M</kbd> magyarázatok ki/be</span>
+        <span>Egy sorra kattintva csak az a parancs másolódik.</span>
         <span>A másolás a magyarázatok nélküli, bemásolható parancsokat adja.</span>
       </footer>
     </div>
